@@ -25,7 +25,6 @@ export default function DashBoard() {
           onClick={() =>
             signOut({ callbackUrl: "http://localhost:3000/login" })
           }
-
           className="btn btn-primary"
         >
           Logout
@@ -33,9 +32,7 @@ export default function DashBoard() {
       </div>
       <SideBar/>
       <div className="flex flex-col h-screen bg-gray-200 text-black *:w-5/6 ml-[19.66667%]">
-        <h1 className="text-3xl font-bold mb-4">Bienvenido
-            
-        </h1>
+        <h1 className="text-3xl font-bold mb-4">Proyectos</h1>
       </div>
     </div>
   )

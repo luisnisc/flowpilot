@@ -29,6 +29,13 @@ export default function Login() {
     <div className="flex flex-col items-center justify-center h-screen bg-gray-200">
       <div className="flex flex-col items-center justify-center h-96 w-max pr-4 pl-4 bg-white rounded-2xl">
         <h1 className="text-3xl font-bold mb-4 text-black">Iniciar Sesión</h1>
+        {error && (
+          <div className="alert alert-error shadow-lg mb-4">
+            <div>
+              <span>{error}</span>
+            </div>
+          </div>
+        )}
         <form
           onSubmit={handleCredentials}
           className="flex flex-col items-center"
