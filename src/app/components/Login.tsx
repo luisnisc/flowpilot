@@ -23,11 +23,12 @@ export default function Login() {
     else router.push("/dashboard");
   };
 
+
+
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-gray-200">
       <div className="flex flex-col items-center justify-center h-96 w-max pr-4 pl-4 bg-white rounded-2xl">
         <h1 className="text-3xl font-bold mb-4 text-black">Iniciar Sesión</h1>
-        {error && <p className="text-red-500">{error}</p>}
         <form
           onSubmit={handleCredentials}
           className="flex flex-col items-center"
@@ -37,15 +38,17 @@ export default function Login() {
             type="email"
             placeholder="Email"
             className="input mb-4"
+            required
           />
           <input
             name="password"
             type="password"
             placeholder="Password"
             className="input mb-4"
+            required
           />
           <button type="submit" className="btn btn-primary mb-4">
-            Login
+            Iniciar Sesión
           </button>
         </form>
         <div className="flex flex-row items-center gap-4">
