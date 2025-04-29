@@ -14,7 +14,7 @@ export default function SideBar() {
   };
 
   const isActive = (path:string) => {
-    return pathname === path ? "bg-gray-700 animate-spin" : "";
+    return pathname === path ? "bg-gray-700" : "";
   };
 
   return (
