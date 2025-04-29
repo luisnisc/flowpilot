@@ -3,11 +3,15 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
-  const [data, setData] = useState({ email: "", name: "", password: "" });
+  const [data, setData] = useState({ email: "", name: "", password: "" , confirmPassword: ""});
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
+    if(data.password !== data.confirmPassword) {
+      setError("Las contraseñas no coinciden");
+      return;
+    }
     e.preventDefault();
     const res = await fetch("/api/auth/signup", {
       method: "POST",
@@ -53,6 +57,13 @@ export default function RegisterPage() {
             className="input mb-4"
             value={data.password}
             onChange={(e) => setData({ ...data, password: e.target.value })}
+            required
+          />
+          <input
+            name="confirmPassword"
+            type="password"
+            placeholder="Confirmar contraseña"
+            className="input mb-4"
             required
           />
           <button type="submit" className="btn btn-primary mb-4">

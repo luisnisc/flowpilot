@@ -2,13 +2,19 @@ import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
 
 export default function SideBar() {
   const { data: session, status } = useSession();
   const [showModal, setShowModal] = useState(false);
+  const pathname = usePathname(); 
 
   const handleSave = () => {
     setShowModal(false);
+  };
+
+  const isActive = (path:string) => {
+    return pathname === path ? "bg-gray-700 animate-spin" : "";
   };
 
   return (
@@ -53,7 +59,9 @@ export default function SideBar() {
           <li>
             <Link
               href="/dashboard"
-              className="block w-full text-center py-2 hover:bg-gray-700 rounded"
+              className={`block w-full text-center py-2 hover:bg-gray-700 rounded ${isActive(
+                "/dashboard"
+              )}`}
             >
               Inicio
             </Link>
@@ -61,7 +69,9 @@ export default function SideBar() {
           <li>
             <Link
               href="/projects"
-              className="block w-full text-center py-2 hover:bg-gray-700 rounded"
+              className={`block w-full text-center py-2 hover:bg-gray-700 rounded ${isActive(
+                "/projects"
+              )}`}
             >
               Proyectos
             </Link>
@@ -69,7 +79,9 @@ export default function SideBar() {
           <li>
             <Link
               href="/tasks"
-              className="block w-full text-center py-2 hover:bg-gray-700 rounded"
+              className={`block w-full text-center py-2 hover:bg-gray-700 rounded ${isActive(
+                "/tasks"
+              )}`}
             >
               Tareas
             </Link>
