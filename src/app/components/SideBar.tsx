@@ -88,10 +88,6 @@ export default function SideBar() {
           </li>
         </ul>
       </nav>
-      {session.user.role === "admin" && (
-        <button className="btn-admin">Acción Admin</button>
-      )}
-
       {showModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-96">
