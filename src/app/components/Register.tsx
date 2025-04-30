@@ -1,23 +1,25 @@
 "use client";
-import React, { useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
-export default function RegisterPage() {
-  const [data, setData] = useState({ email: "", name: "", password: "" , confirmPassword: ""});
+export default function Register() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    if(data.password !== data.confirmPassword) {
-      setError("Las contraseñas no coinciden");
-      return;
-    }
     e.preventDefault();
+    setLoading(true);
     const res = await fetch("/api/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ name, email, password }),
     });
+    setLoading(false);
     if (res.ok) {
       router.push("/login");
     } else {
@@ -25,6 +27,15 @@ export default function RegisterPage() {
       setError(error);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <p className="mt-4 text-gray-600">Procesando registro...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-gray-200">
@@ -37,8 +48,8 @@ export default function RegisterPage() {
             type="email"
             placeholder="Correo"
             className="input mb-4"
-            value={data.email}
-            onChange={(e) => setData({ ...data, email: e.target.value })}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             required
           />
           <input
@@ -46,8 +57,8 @@ export default function RegisterPage() {
             type="text"
             placeholder="Nombre de usuario"
             className="input mb-4"
-            value={data.name}
-            onChange={(e) => setData({ ...data, name: e.target.value })}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             required
           />
           <input
@@ -55,19 +66,16 @@ export default function RegisterPage() {
             type="password"
             placeholder="Contraseña"
             className="input mb-4"
-            value={data.password}
-            onChange={(e) => setData({ ...data, password: e.target.value })}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             required
           />
-          <input
-            name="confirmPassword"
-            type="password"
-            placeholder="Confirmar contraseña"
-            className="input mb-4"
-            required
-          />
-          <button type="submit" className="btn btn-primary mb-4">
-            Registrar
+          <button
+            type="submit"
+            className="btn btn-primary mb-4"
+            disabled={loading}
+          >
+            {loading ? "Cargando..." : "Registrar"}
           </button>
         </form>
       </div>

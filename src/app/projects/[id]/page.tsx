@@ -10,8 +10,7 @@ export default function ProjectDetail() {
   const projectId = params.id as string;
   
   return (
-    <div className="relative">
-      <SideBar />
+    <div className="relative ">
       <ProjectDetails id={projectId} />
     </div>
   );

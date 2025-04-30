@@ -1,9 +1,22 @@
-import { Schema, model, models } from "mongoose";
+import mongoose from 'mongoose';
 
-const MessageSchema = new Schema({
-  content: { type: String, required: true },
-  project: { type: Schema.Types.ObjectId, ref: "Project" },
-  author: { type: Schema.Types.ObjectId, ref: "User" }
-}, { timestamps: true });
+const MessageSchema = new mongoose.Schema({
+  projectId: {
+    type: String,
+    required: true
+  },
+  user: {
+    type: String,
+    required: true
+  },
+  message: {
+    type: String,
+    required: true
+  },
+  timestamp: {
+    type: Date,
+    default: Date.now
+  }
+});
 
-export default models.Message || model("Message", MessageSchema);
+export default mongoose.models.Message || mongoose.model('Message', 'MessageSchema');
