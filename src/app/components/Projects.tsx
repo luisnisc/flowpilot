@@ -22,6 +22,11 @@ export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  if(session?.user?.role === "admin") {
+    setIsAdmin(true);
+  };
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -94,10 +99,16 @@ export default function Projects() {
       <main className="flex flex-col h-screen bg-gray-200 text-black ml-[16.66667%]">
         <div className="flex flex-col h-screen bg-gray-200 text-black p-6">
           <h1 className="text-3xl font-bold mb-6">Proyectos</h1>
+          {isAdmin && (
+            <Link href="/projects/create">
+              <button className="btn btn-primary mb-4">Crear Proyecto</button>
+            </Link>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.length > 0 ? (
               projects.map((project) => (
+                project.users?.includes(session?.user?.email)&&(
                 <a href={`/projects/${project._id}`} key={project._id}>
                   <div
                     key={project._id}
@@ -122,6 +133,7 @@ export default function Projects() {
                     )}
                   </div>
                 </a>
+                )
               ))
             ) : (
               <div className="col-span-full text-center py-8">

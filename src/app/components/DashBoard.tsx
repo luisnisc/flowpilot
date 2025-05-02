@@ -83,7 +83,7 @@ export default function DashBoard() {
 
   // Filter active projects (not completed)
   const activeProjects = projects.filter(
-    (project) => project.status === "active"
+    (project) => project.status !== "completed"
   );
 
   // Get priority color
@@ -236,6 +236,7 @@ export default function DashBoard() {
               ) : (
                 <ul className="space-y-3">
                   {activeProjects.map((project) => (
+                    project.users?.includes(session?.user?.email || session?.user?.name) && (
                     <li 
                       key={project._id} 
                       className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow"
@@ -252,19 +253,13 @@ export default function DashBoard() {
                         </div>
                       </Link>
                     </li>
+                    )
                   ))}
                 </ul>
               )}
             </div>
             
-            <div className="p-3 bg-gray-50 border-t border-gray-200">
-              <Link 
-                href="/projects/add"
-                className="block w-full py-2 bg-green-100 text-green-700 text-center rounded hover:bg-green-200 transition-colors"
-              >
-                Crear nuevo proyecto
-              </Link>
-            </div>
+            
           </div>
         </div>
 

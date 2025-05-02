@@ -1,12 +1,13 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 
-// Definimos una interfaz para los datos de usuario
+// Extender la interfaz de usuario para incluir ID
 interface UserSettings {
+  id?: string;
   name: string;
   email: string;
   role: "admin" | "user";
@@ -16,11 +17,22 @@ export default function SideBar() {
   const { data: session, status } = useSession();
   const [showModal, setShowModal] = useState<boolean>(false);
   const [userSettings, setUserSettings] = useState<UserSettings>({
-    name: session?.user?.name || "",
-    email: session?.user?.email || "",
+    name: "",
+    email: "",
     role: "user",
   });
   const pathname = usePathname();
+
+  // Actualizar userSettings cuando session esté disponible
+  useEffect(() => {
+    if (session?.user) {
+      setUserSettings({
+        id: session.user.email, 
+        name: session.user.name || "",
+        email: session.user.email || "",
+      });
+    }
+  }, [session]);
 
   // Handler para actualizar los campos del formulario
   const handleChange = (
@@ -34,10 +46,35 @@ export default function SideBar() {
   };
 
   const handleSave = () => {
-    // Aquí iría la lógica para guardar la configuración del usuario
-    // Por ejemplo, una llamada a la API
-    console.log("Guardando configuración:", userSettings);
-    setShowModal(false);
+    // Obtenemos el email como identificador
+    const userEmail = session?.user?.email;
+
+    if (!userEmail) {
+      console.error("No se pudo obtener el identificador del usuario");
+      return;
+    }
+
+    fetch(`/api/users/${encodeURIComponent(userEmail)}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(userSettings),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Error: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        console.log("Configuración guardada:", data);
+        setShowModal(false);
+      })
+      .catch((error) => {
+        console.error("Error al guardar la configuración:", error);
+        alert("No se pudo guardar la configuración: " + error.message);
+      });
   };
 
   const isActive = (path: string): string => {
@@ -122,13 +159,13 @@ export default function SideBar() {
       </nav>
       {showModal && (
         <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 "
           aria-labelledby="modal-title"
           role="dialog"
           aria-modal="true"
         >
-          <div className="bg-white rounded-lg p-6 w-96 text-black">
-            <h2 id="modal-title" className="text-xl font-bold mb-4">
+          <div className="bg-white rounded-lg p-6 w-96 text-white">
+            <h2 id="modal-title" className="text-xl font-bold mb-4 text-black">
               Configuración de usuario
             </h2>
             <form

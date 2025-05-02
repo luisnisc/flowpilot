@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import SideBar from "./SideBar";
 import {
   FiSave,
@@ -18,6 +18,8 @@ interface Project {
 export default function AddTaskForm() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get("projectId");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,21 +27,35 @@ export default function AddTaskForm() {
   const [projects, setProjects] = useState<Project[]>([]);
 
   // Formulario
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [project, setProject] = useState("");
-  const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
-  const [assignedTo, setAssignedTo] = useState("");
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    status: "pending",
+    priority: "medium",
+    project: projectId || "", // Preseleccionar el proyecto si existe en la URL
+    assignedTo: "",
+  });
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
     } else if (status === "authenticated" && session?.user?.email) {
-      // Establecer el email de la sesión como valor por defecto
-      setAssignedTo(session.user.email);
+      setFormData((prev) => ({
+        ...prev,
+        assignedTo: session.user.email,
+      }));
       fetchProjects();
     }
   }, [status, router, session]);
+
+  useEffect(() => {
+    if (projectId) {
+      setFormData((prev) => ({
+        ...prev,
+        project: projectId,
+      }));
+    }
+  }, [projectId]);
 
   const fetchProjects = async () => {
     try {
@@ -57,9 +73,11 @@ export default function AddTaskForm() {
       const data = await res.json();
       setProjects(data);
 
-      // Si hay proyectos, seleccionar el primero por defecto
-      if (data.length > 0) {
-        setProject(data[0]._id);
+      if (data.length > 0 && !projectId) {
+        setFormData((prev) => ({
+          ...prev,
+          project: data[0]._id,
+        }));
       }
 
       setLoading(false);
@@ -73,7 +91,7 @@ export default function AddTaskForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!title || !description || !project) {
+    if (!formData.title || !formData.description || !formData.project) {
       setError("Por favor completa todos los campos requeridos");
       return;
     }
@@ -87,28 +105,22 @@ export default function AddTaskForm() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          title,
-          description,
-          project,
-          priority,
-          assignedTo,
-          status: "pending", // Estado inicial para nuevas tareas
-        }),
+        body: JSON.stringify(formData),
       });
 
       if (!res.ok) {
         throw new Error("Error al crear la tarea");
       }
 
-      // Mostrar mensaje de éxito
       setSuccess("¡Tarea creada correctamente!");
 
-      // Redireccionar después de un breve momento
       setTimeout(() => {
-        router.push("/tasks");
+        {projectId
+          ? router.push(`/projects/${projectId}`)
+          : router.push("/tasks");
+        }
         router.refresh();
-      }, 1500);
+      }, 1000);
     } catch (err) {
       console.error("Error creating task:", err);
       setError("No se pudo crear la tarea. Inténtalo de nuevo.");
@@ -177,8 +189,13 @@ export default function AddTaskForm() {
                     id="title"
                     type="text"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                    value={formData.title}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        title: e.target.value,
+                      }))
+                    }
                     placeholder="Ej: Implementar diseño responsive"
                     required
                   />
@@ -194,8 +211,13 @@ export default function AddTaskForm() {
                   <textarea
                     id="description"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px]"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
+                    value={formData.description}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        description: e.target.value,
+                      }))
+                    }
                     placeholder="Describe detalladamente la tarea a realizar..."
                     required
                   />
@@ -213,8 +235,13 @@ export default function AddTaskForm() {
                       <select
                         id="project"
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                        value={project}
-                        onChange={(e) => setProject(e.target.value)}
+                        value={formData.project}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            project: e.target.value,
+                          }))
+                        }
                         required
                       >
                         {projects.map((proj) => (
@@ -244,9 +271,12 @@ export default function AddTaskForm() {
                     <select
                       id="priority"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      value={priority}
+                      value={formData.priority}
                       onChange={(e) =>
-                        setPriority(e.target.value as "low" | "medium" | "high")
+                        setFormData((prev) => ({
+                          ...prev,
+                          priority: e.target.value as "low" | "medium" | "high",
+                        }))
                       }
                     >
                       <option value="low">Baja</option>
@@ -267,8 +297,13 @@ export default function AddTaskForm() {
                     id="assignedTo"
                     type="email"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={assignedTo}
-                    onChange={(e) => setAssignedTo(e.target.value)}
+                    value={formData.assignedTo}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        assignedTo: e.target.value,
+                      }))
+                    }
                     placeholder="Email del responsable"
                   />
                   <p className="text-xs text-gray-500 mt-1 ml-1">

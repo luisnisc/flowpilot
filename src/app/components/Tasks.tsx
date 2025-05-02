@@ -365,7 +365,7 @@ export default function Tasks() {
 
       {/* Modal para editar tarea */}
       {showEditModal && editingTask && (
-        <div className="fixed inset-0 bg-gray-800/80 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-gray-800/80 flex items-center justify-center z-50 p-4 text-black">
           <div className="bg-white rounded-lg shadow-xl overflow-hidden w-full max-w-md md:max-w-lg animate-fade-in">
             <div className="bg-blue-600 text-white px-6 py-4 flex justify-between items-center">
               <h3 className="text-lg font-medium">Editar Tarea</h3>

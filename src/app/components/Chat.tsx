@@ -188,7 +188,7 @@ export default function Chat({ projectId }: ChatProps) {
 
   return (
     <div className="bg-white rounded-lg shadow h-full flex flex-col">
-      <div className="p-4 md:p-6 border-b flex items-center justify-between">
+      <div className="p-4 md:p-6 border-b border-blue-700 flex items-center justify-between">
         <h2 className="font-bold text-xl text-gray-800">Chat del Proyecto</h2>
         <div className="flex items-center">
           <span
@@ -257,12 +257,12 @@ export default function Chat({ projectId }: ChatProps) {
       {/* Formulario de envío */}
       <form
         onSubmit={sendMessage}
-        className="border-t p-4 flex items-center space-x-2"
+        className="border-t border-blue-700 p-4 flex items-center space-x-2"
       >
         <input
           type="text"
           placeholder={connected ? "Escribe un mensaje..." : "Conectando..."}
-          className="flex-grow border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-grow border border-blue-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           disabled={!connected || sending}

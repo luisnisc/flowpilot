@@ -10,6 +10,7 @@ import {
 } from "@hello-pangea/dnd";
 import SideBar from "./SideBar";
 import Chat from "./Chat";
+import Link from "next/link";
 
 interface Task {
   _id: string;
@@ -253,6 +254,7 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
           >
             ← Volver
           </button>
+         
           <h1 className="text-3xl font-bold">{project.name}</h1>
           <p className="text-gray-600 mt-2">{project.description}</p>
           {project.status && (
@@ -268,6 +270,26 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
               {project.status}
             </span>
           )}
+          <Link 
+          href={`/addTask?projectId=${id}`}
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center"
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            className="h-5 w-5 mr-2" 
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor"
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth={2} 
+              d="M12 4v16m8-8H4" 
+            />
+          </svg>
+          Nueva tarea
+        </Link>
         </div>
 
         <DragDropContext onDragEnd={onDragEnd}>
@@ -485,10 +507,12 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
           </div>
         </DragDropContext>
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-6 h-max">
             <h2 className="font-bold text-xl mb-4 text-gray-800">
               Usuarios asignados al proyecto
             </h2>
+
+           
 
             {project.users && project.users.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

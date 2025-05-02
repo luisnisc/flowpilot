@@ -20,6 +20,7 @@ export default NextAuth({
         const img = profile.picture || profile.avatar_url;
         if (img) token.picture = img;
       }
+      
       return token;
     },
     async session({ session, token }) {
