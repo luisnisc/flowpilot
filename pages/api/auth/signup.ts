@@ -1,7 +1,8 @@
+import { NextApiRequest, NextApiResponse } from "next";
 import clientPromise from "../../../lib/mongodb";
 import bcrypt from "bcryptjs";
 
-export default async function handler(req, res) {
+export default async function handler(req:NextApiRequest, res:NextApiResponse) {
   if (req.method !== "POST") return res.status(405).end();
   const { email, name, password } = req.body;
   const client = await clientPromise;

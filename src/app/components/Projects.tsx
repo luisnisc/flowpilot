@@ -13,7 +13,7 @@ interface Project {
   description: string;
   tasks?: string[];
   users?: string[];
-  status?: string;
+  status?: "active" | "completed" | "archived";
 }
 
 export default function Projects() {
@@ -44,9 +44,11 @@ export default function Projects() {
         throw new Error("Failed to fetch projects");
       }
 
-      const data = await res.json();
+      const data: Project[] = await res.json();
       const userProjects = data.filter(
-        (project: Project) => project.users?.includes(session?.user?.email) || project.users?.includes(session?.user?.name)
+        (project) =>
+          project.users?.includes(session?.user?.email || "") ||
+          project.users?.includes(session?.user?.name || "")
       );
       setProjects(userProjects);
       setLoading(false);

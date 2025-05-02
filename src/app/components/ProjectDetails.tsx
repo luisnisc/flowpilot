@@ -2,7 +2,12 @@
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  DropResult,
+} from "@hello-pangea/dnd";
 import SideBar from "./SideBar";
 import Chat from "./Chat";
 
@@ -16,6 +21,14 @@ interface Task {
   assignedTo?: string;
 }
 
+interface KanbanTask {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  priority: "low" | "medium" | "high";
+}
+
 interface Project {
   _id: string;
   name: string;
@@ -25,7 +38,15 @@ interface Project {
   status?: string;
 }
 
-const emptyColumns = {
+interface ColumnData {
+  backlog: KanbanTask[];
+  in_progress: KanbanTask[];
+  review: KanbanTask[];
+  done: KanbanTask[];
+  [key: string]: KanbanTask[]; // Índice dinámico para acceso por strings
+}
+
+const emptyColumns: ColumnData = {
   backlog: [],
   in_progress: [],
   review: [],
@@ -39,7 +60,7 @@ interface ProjectDetailsProps {
 export default function ProjectDetails({ id }: ProjectDetailsProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [columns, setColumns] = useState(emptyColumns);
+  const [columns, setColumns] = useState<ColumnData>(emptyColumns);
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
@@ -93,7 +114,8 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
       const projectTasks = tasksData.filter(
         (task: Task) => task.project === selectedProject._id
       );
-      const newColumns = {
+
+      const newColumns: ColumnData = {
         backlog: [],
         in_progress: [],
         review: [],
@@ -101,7 +123,7 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
       };
 
       projectTasks.forEach((task: Task) => {
-        const kanbanTask = {
+        const kanbanTask: KanbanTask = {
           id: task._id,
           title: task.title,
           description: task.description,
@@ -151,7 +173,7 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
     return <div>No se encontró el proyecto</div>;
   }
 
-  const onDragEnd = (result) => {
+  const onDragEnd = (result: DropResult) => {
     const { destination, source, draggableId } = result;
 
     if (
@@ -168,14 +190,14 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
     const draggedTask = sourceColumn.find((task) => task.id === draggableId);
     if (!draggedTask) return;
 
-    const columnToStatus = {
+    const columnToStatus: Record<string, string> = {
       backlog: "pending",
       in_progress: "in_progress",
       review: "review",
       done: "done",
     };
 
-    const updatedTask = {
+    const updatedTask: KanbanTask = {
       ...draggedTask,
       status: columnToStatus[destination.droppableId],
     };
@@ -463,7 +485,7 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
           </div>
         </DragDropContext>
         <div className="grid grid-cols-2 gap-6">
-          <div id="users" className="mt-8 bg-white rounded-lg shadow p-6">
+          <div id="users" className="mt-8 bg-white rounded-lg shadow p-6 w-max">
             <h2 className="font-bold text-xl mb-6 text-gray-800">
               Usuarios asignados al proyecto
             </h2>
@@ -501,9 +523,7 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
               </p>
             )}
           </div>
-          <div className="mt-8">
-            <Chat projectId={id} />
-          </div>
+          <Chat projectId={id} />
         </div>
       </main>
     </>

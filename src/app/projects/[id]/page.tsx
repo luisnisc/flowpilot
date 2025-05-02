@@ -2,16 +2,43 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import SideBar from "@/app/components/SideBar";
-import ProjectDetails from "../../components/ProjectDetails";
+import { useEffect } from "react";
+import ProjectDetails from "@/app/components/ProjectDetails";
+
+interface ProjectDetailParams {
+  id: string;
+}
 
 export default function ProjectDetail() {
-  const params = useParams();
-  const projectId = params.id as string;
-  
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
+  const { status } = useSession();
+  const projectId = params?.id as string;
+
+  useEffect(() => {
+    // Redirigir al usuario si no está autenticado
+    if (status === "unauthenticated") {
+      router.push("/login");
+    }
+
+    // Validar que tenemos un ID de proyecto válido
+    if (!projectId) {
+      router.push("/projects");
+    }
+  }, [status, projectId, router]);
+
+  // Mostrar estado de carga mientras se verifica la sesión
+  if (status === "loading") {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="relative ">
-      <ProjectDetails id={projectId} />
+    <div className="relative">
+      {projectId && <ProjectDetails id={projectId} />}
     </div>
   );
 }

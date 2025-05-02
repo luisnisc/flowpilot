@@ -1,8 +1,18 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth/next";
+import  authOptions  from "./auth/[...nextauth]";
 import clientPromise from "../../lib/mongodb";
-import authOptions  from "./auth/[...nextauth]";
 import { ObjectId } from "mongodb";
+
+// Definir una interfaz para el tipo de sesión esperado
+interface SessionUser {
+  user?: {
+    name?: string;
+    email?: string;
+    image?: string;
+    role?: string;
+  };
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -10,12 +20,17 @@ export default async function handler(
 ) {
   try {
     // Check authentication
-    const session = await getServerSession(req, res, authOptions);
-    if (!session) {
+    const session = (await getServerSession(
+      req,
+      res,
+      authOptions
+    )) as SessionUser;
+
+    if (!session || !session.user) {
       return res.status(401).json({ error: "Not authenticated" });
     }
 
-    // Connect to MongoDB - Use the same database name as in NextAuth config
+    // Connect to MongoDB
     const client = await clientPromise;
     const db = client.db("app");
     const messagesCollection = db.collection("messages");
@@ -43,6 +58,7 @@ export default async function handler(
       return res.status(200).json(serializedMessages);
     }
 
+    // Handle POST request - Create a new message
     else if (req.method === "POST") {
       const { projectId, message, user } = req.body;
 
@@ -53,7 +69,7 @@ export default async function handler(
       }
 
       // Ensure the user can only send messages as themselves
-      if (user !== session.user?.email) {
+      if (user !== session.user.email) {
         return res
           .status(403)
           .json({ error: "You can only send messages as yourself" });
@@ -84,8 +100,9 @@ export default async function handler(
     }
   } catch (error) {
     console.error("Error en API de mensajes:", error);
-    return res
-      .status(500)
-      .json({ error: "Error interno del servidor", details: error.message });
+    return res.status(500).json({
+      error: "Error interno del servidor",
+      details: error instanceof Error ? error.message : "Error desconocido",
+    });
   }
 }

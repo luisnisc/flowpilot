@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { io } from "socket.io-client";
+import { io, Socket } from "socket.io-client";
 
 interface Task {
   id: string;
   title: string;
   description: string;
-  priority: string;
-  status: string;
+  priority: "low" | "medium" | "high";
+  status: "pending" | "in_progress" | "review" | "done";
 }
 
 interface Columns {
@@ -14,15 +14,28 @@ interface Columns {
   in_progress: Task[];
   review: Task[];
   done: Task[];
+  [key: string]: Task[]; // Índice dinámico para acceso por strings
+}
+
+interface TaskUpdatePayload {
+  projectId: string;
+  task: Task;
+}
+
+interface UseProjectSyncReturn {
+  columns: Columns;
+  setColumns: React.Dispatch<React.SetStateAction<Columns>>;
+  connected: boolean;
+  updateTask: (taskId: string, newStatus: string, taskData: Task) => void;
 }
 
 export default function useProjectSync(
   projectId: string,
   initialColumns: Columns
-) {
+): UseProjectSyncReturn {
   const [columns, setColumns] = useState<Columns>(initialColumns);
-  const [connected, setConnected] = useState(false);
-  const socketRef = useRef<any>(null);
+  const [connected, setConnected] = useState<boolean>(false);
+  const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
     if (!projectId) return;
@@ -45,7 +58,9 @@ export default function useProjectSync(
           setConnected(true);
 
           // Unirse a la sala del proyecto
-          socketRef.current.emit("joinProjectSync", projectId);
+          if (socketRef.current) {
+            socketRef.current.emit("joinProjectSync", projectId);
+          }
         });
 
         // Escuchar actualizaciones de tareas
@@ -71,7 +86,9 @@ export default function useProjectSync(
 
           setColumns((prevColumns) => {
             // Crear una copia profunda del estado anterior
-            const newColumns = JSON.parse(JSON.stringify(prevColumns));
+            const newColumns = JSON.parse(
+              JSON.stringify(prevColumns)
+            ) as Columns;
 
             // Eliminar la tarea de todas las columnas
             Object.keys(newColumns).forEach((columnKey) => {
@@ -94,13 +111,21 @@ export default function useProjectSync(
           setColumns(updatedColumns);
         });
 
+        // Manejar errores
+        socketRef.current.on("error", (error: { message: string }) => {
+          console.error("Error en la sincronización:", error.message);
+        });
+
         // Manejar desconexiones
         socketRef.current.on("disconnect", () => {
           console.log("Desconectado del servidor de sincronización");
           setConnected(false);
         });
       } catch (error) {
-        console.error("Error al inicializar la conexión de socket:", error);
+        console.error(
+          "Error al inicializar la conexión de socket:",
+          error instanceof Error ? error.message : "Error desconocido"
+        );
         setConnected(false);
       }
     };
@@ -116,15 +141,26 @@ export default function useProjectSync(
   }, [projectId]);
 
   // Función para emitir cambios de tareas
-  const updateTask = (taskId: string, newStatus: string, taskData: Task) => {
+  const updateTask = (
+    taskId: string,
+    newStatus: string,
+    taskData: Task
+  ): void => {
     if (!socketRef.current || !connected) {
       console.error("No se puede actualizar tarea - socket desconectado");
       return;
     }
 
-    const updatedTask = {
+    // Validar que newStatus es un valor válido
+    const validStatuses = ["pending", "in_progress", "review", "done"];
+    if (!validStatuses.includes(newStatus)) {
+      console.error(`Estado no válido: ${newStatus}`);
+      return;
+    }
+
+    const updatedTask: Task = {
       ...taskData,
-      status: newStatus,
+      status: newStatus as Task["status"],
     };
 
     console.log(
@@ -136,7 +172,7 @@ export default function useProjectSync(
     socketRef.current.emit("updateTask", {
       projectId,
       task: updatedTask,
-    });
+    } as TaskUpdatePayload);
   };
 
   return { columns, setColumns, connected, updateTask };

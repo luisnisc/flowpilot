@@ -370,6 +370,7 @@ export default function Tasks() {
             <div className="bg-blue-600 text-white px-6 py-4 flex justify-between items-center">
               <h3 className="text-lg font-medium">Editar Tarea</h3>
               <button
+                title="Cerrar"
                 onClick={() => setShowEditModal(false)}
                 className="text-white hover:text-blue-200"
               >
