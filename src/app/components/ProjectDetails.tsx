@@ -272,7 +272,7 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
           )}
           <Link 
           href={`/addTask?projectId=${id}`}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center"
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center w-max absolute right-6 top-6"
         >
           <svg 
             xmlns="http://www.w3.org/2000/svg" 
