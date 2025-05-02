@@ -439,7 +439,7 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className="max-h-[35vh]"
+                    className="min-h-[35vh] "
                   >
                     {columns.done.map((task, index) => (
                       <Draggable
