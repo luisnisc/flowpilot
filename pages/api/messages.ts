@@ -43,7 +43,6 @@ export default async function handler(
       return res.status(200).json(serializedMessages);
     }
 
-    // Handle POST request - Create a new message
     else if (req.method === "POST") {
       const { projectId, message, user } = req.body;
 

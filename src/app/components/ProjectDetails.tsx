@@ -463,45 +463,47 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
           </div>
         </DragDropContext>
         <div className="grid grid-cols-2 gap-6">
-        <div id="users" className="mt-8 bg-white rounded-lg shadow p-6 w-max">
-          <h2 className="font-bold text-xl mb-6 text-gray-800">
-            Usuarios asignados al proyecto
-          </h2>
+          <div id="users" className="mt-8 bg-white rounded-lg shadow p-6">
+            <h2 className="font-bold text-xl mb-6 text-gray-800">
+              Usuarios asignados al proyecto
+            </h2>
 
-          {project.users && project.users.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {project.users.map((user) => (
-                <div
-                  key={user}
-                  className="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex-shrink-0">
-                    <img
-                      src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
-                        user
-                      )}&background=random&color=fff&size=48`}
-                      alt={`Avatar de ${user}`}
-                      className="w-12 h-12 rounded-full border-2 border-white shadow"
-                    />
-                  </div>
-                  <div className="ml-4">
-                    <div className="text-sm font-medium text-gray-900">
-                      {user}
+            {project.users && project.users.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {project.users.map((user) => (
+                  <div
+                    key={user}
+                    className="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="flex-shrink-0">
+                      <img
+                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                          user
+                        )}&background=random&color=fff&size=48`}
+                        alt={`Avatar de ${user}`}
+                        className="w-12 h-12 rounded-full border-2 border-white shadow"
+                      />
                     </div>
-                    <div className="text-sm text-gray-500">
-                      {user.includes("@") ? "Miembro" : "Usuario"}
+                    <div className="ml-4">
+                      <div className="text-sm font-medium text-gray-900">
+                        {user}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {user.includes("@") ? "Miembro" : "Usuario"}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 italic">
-              No hay usuarios asignados a este proyecto
-            </p>
-          )}
-        </div>
-        <Chat projectId={id} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 italic">
+                No hay usuarios asignados a este proyecto
+              </p>
+            )}
+          </div>
+          <div className="mt-8">
+            <Chat projectId={id} />
+          </div>
         </div>
       </main>
     </>

@@ -22,6 +22,7 @@ export default function Chat({ projectId }: ChatProps) {
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
+  const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<any>(null);
 
@@ -63,10 +64,41 @@ export default function Chat({ projectId }: ChatProps) {
         socketRef.current.emit("joinProject", projectId);
       });
 
+      // Escuchar mensajes previos (históricos)
+      socketRef.current.on(
+        "previousMessages",
+        (previousMessages: Message[]) => {
+          console.log("Mensajes previos recibidos:", previousMessages.length);
+          setMessages(previousMessages);
+          setLoading(false);
+        }
+      );
+
       // Escuchar nuevos mensajes
       socketRef.current.on("newMessage", (message: Message) => {
         console.log("Nuevo mensaje recibido:", message);
-        setMessages((prevMessages) => [...prevMessages, message]);
+        // Asegurarse de no añadir duplicados verificando el ID
+        setMessages((prevMessages) => {
+          // Verificar si este mensaje ya existe en la lista
+          const messageExists = prevMessages.some(
+            (m) =>
+              m._id === message._id ||
+              (m.user === message.user &&
+                m.message === message.message &&
+                m.timestamp === message.timestamp)
+          );
+
+          if (messageExists) {
+            return prevMessages;
+          }
+
+          return [...prevMessages, message];
+        });
+
+        // Si estamos esperando respuesta de un mensaje enviado, actualizar el estado
+        if (sending) {
+          setSending(false);
+        }
       });
 
       // Manejar desconexiones
@@ -76,30 +108,17 @@ export default function Chat({ projectId }: ChatProps) {
       });
     } catch (error) {
       console.error("Error al inicializar el WebSocket para el chat:", error);
+      setLoading(false);
     }
   };
 
   const fetchMessages = async () => {
     try {
+      // Ya no necesitamos cargar mensajes por HTTP, los obtendremos vía WebSocket
+      // Este método ahora está principalmente para gestionar el estado de carga inicial
       setLoading(true);
-
-      console.log(`Fetching messages for project: ${projectId}`);
-      const res = await fetch(`/api/messages?projectId=${projectId}`);
-
-      if (!res.ok) {
-        const errorText = await res.text().catch(() => null);
-        console.error(`API error (${res.status}): ${errorText || res.statusText}`);
-        throw new Error(`Error ${res.status}: ${errorText || "Could not fetch messages"}`);
-      }
-
-      const data = await res.json();
-      console.log(`Fetched ${data.length} messages`);
-      setMessages(data);
     } catch (err) {
       console.error("Error fetching messages:", err);
-      // Even if there's an error, we still want to allow the user to send messages
-      setMessages([]);
-    } finally {
       setLoading(false);
     }
   };
@@ -107,9 +126,12 @@ export default function Chat({ projectId }: ChatProps) {
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!newMessage.trim() || !session?.user?.email) return;
+    if (!newMessage.trim() || !session?.user?.email || sending) return;
 
     try {
+      // Indicar que estamos enviando un mensaje
+      setSending(true);
+
       // Crear el objeto mensaje
       const messageData = {
         projectId,
@@ -118,33 +140,26 @@ export default function Chat({ projectId }: ChatProps) {
         timestamp: new Date().toISOString(),
       };
 
-      // Guardar en la base de datos
-      const res = await fetch("/api/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(messageData),
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to send message");
-      }
-
-      const savedMessage = await res.json();
-
-      // Enviar mensaje vía WebSocket si está conectado
-      if (socketRef.current && connected) {
-        socketRef.current.emit("sendMessage", savedMessage);
-      } else {
-        // Si no está conectado, actualizamos la UI localmente
-        setMessages((prevMessages) => [...prevMessages, savedMessage]);
-      }
-
-      // Limpiar campo de entrada
+      // Limpiar campo de entrada inmediatamente para mejor UX
       setNewMessage("");
+
+      // Enviar mensaje vía WebSocket
+      if (socketRef.current && connected) {
+        // Simplemente enviar al servidor y esperar la confirmación
+        socketRef.current.emit("sendMessage", messageData);
+
+        // Añadir un temporizador de seguridad para restablecer el estado
+        // en caso de que no recibamos confirmación del servidor
+        setTimeout(() => {
+          setSending(false);
+        }, 3000); // 3 segundos de tiempo máximo de espera
+      } else {
+        console.error("No se pudo enviar el mensaje: Socket no conectado");
+        setSending(false);
+      }
     } catch (err) {
       console.error("Error sending message:", err);
+      setSending(false);
     }
   };
 
@@ -159,7 +174,7 @@ export default function Chat({ projectId }: ChatProps) {
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
 
-  if (loading) {
+  if (loading && !messages.length) {
     return (
       <div className="bg-white rounded-lg shadow p-4 md:p-6 h-full">
         <div className="animate-pulse space-y-4">
@@ -219,7 +234,7 @@ export default function Chat({ projectId }: ChatProps) {
                         : "text-gray-500"
                     }
                   >
-                    {msg.user}
+                    {msg.user.split("@")[0]}
                   </span>
                   <span
                     className={`ml-2 ${
@@ -246,22 +261,26 @@ export default function Chat({ projectId }: ChatProps) {
       >
         <input
           type="text"
-          placeholder="Escribe un mensaje..."
+          placeholder={connected ? "Escribe un mensaje..." : "Conectando..."}
           className="flex-grow border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
-          disabled={!connected}
+          disabled={!connected || sending}
         />
         <button
           type="submit"
-          disabled={!newMessage.trim() || !connected}
+          disabled={!newMessage.trim() || !connected || sending}
           className={`bg-blue-600 text-white rounded-lg p-2 ${
-            !newMessage.trim() || !connected
+            !newMessage.trim() || !connected || sending
               ? "opacity-50 cursor-not-allowed"
               : "hover:bg-blue-700"
           }`}
         >
-          <FaPaperPlane />
+          {sending ? (
+            <div className="w-5 h-5 border-t-2 border-b-2 border-white rounded-full animate-spin"></div>
+          ) : (
+            <FaPaperPlane />
+          )}
         </button>
       </form>
     </div>
