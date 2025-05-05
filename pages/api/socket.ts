@@ -1,3 +1,10 @@
+export const config = {
+  api: {
+    bodyParser: false,
+    responseLimit: false,
+  },
+};
+
 import { Server } from "socket.io";
 import { getServerSession } from "next-auth/next";
 import authOptions from "./auth/[...nextauth]";
@@ -42,13 +49,14 @@ export default async function handler(req: NextApiRequest, res: SocketServer) {
   }
 
   try {
-    // Configurar Socket.IO con path explícito
+    // Configurar Socket.IO con path absoluto
     const io = new Server(res.socket.server, {
-      path: "/api/socket",
+      path: "/api/socket", // Asegúrate de que esta es exactamente la ruta usada
       addTrailingSlash: false,
       cors: {
         origin: "*",
         methods: ["GET", "POST"],
+        credentials: true,
       },
       // Para mejor rendimiento en entornos serverless
       transports: ["polling", "websocket"],

@@ -25,22 +25,88 @@ export default function useChat(
   const [connected, setConnected] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const socketRef = useRef<Socket | null>(null);
-  const messagesRef = useRef<Message[]>(messages); // Referencia para acceder al valor más reciente en el callback
+  const messagesRef = useRef<Message[]>(messages);
+  const [usePolling, setUsePolling] = useState<boolean>(false);
+  const isVercel = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
+  
+  // Si estamos en Vercel, usar polling por defecto
+  useEffect(() => {
+    if (isVercel) {
+      setUsePolling(true);
+    }
+  }, [isVercel]);
 
   // Actualizar la referencia cuando cambian los mensajes
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
 
+  // Cargar mensajes iniciales y configurar polling si es necesario
   useEffect(() => {
-    // Inicializar socket y conectarse al servidor
+    if (!projectId) return;
+
+    const fetchMessages = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch(`/api/messages?projectId=${projectId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setMessages(data);
+        }
+      } catch (error) {
+        console.error("Error fetching messages:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMessages();
+
+    // Si usamos polling, configurar intervalo
+    let pollingInterval: NodeJS.Timeout | null = null;
+    
+    if (usePolling && projectId) {
+      pollingInterval = setInterval(async () => {
+        try {
+          // Solo buscar mensajes más nuevos que el último que tenemos
+          const lastTimestamp = messagesRef.current.length > 0 
+            ? messagesRef.current[messagesRef.current.length - 1].timestamp 
+            : '';
+          
+          const response = await fetch(
+            `/api/messages?projectId=${projectId}&after=${encodeURIComponent(lastTimestamp)}`
+          );
+          
+          if (response.ok) {
+            const newMessages = await response.json();
+            if (newMessages.length > 0) {
+              setMessages(prevMessages => [...prevMessages, ...newMessages]);
+            }
+          }
+        } catch (error) {
+          console.error("Error polling messages:", error);
+        }
+      }, 3000);
+    }
+
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [projectId, usePolling]);
+
+  // Socket.IO setup - solo si no estamos usando polling
+  useEffect(() => {
+    if (usePolling || !projectId || !user) return;
+
     const initSocket = async () => {
       try {
         // Asegurarnos de que el servidor socket está listo
         await fetch("/api/socket");
 
         // Crear conexión con path explícito
-        socketRef.current = io({
+        socketRef.current = io("/", {  // URL base
           path: "/api/socket",
           reconnectionAttempts: 5,
           reconnectionDelay: 1000,
@@ -48,50 +114,37 @@ export default function useChat(
           timeout: 10000,
         });
 
-        // Configurar eventos
+        // Configurar eventos socket...
         socketRef.current.on("connect", () => {
           console.log("Conectado al servidor de chat");
           setConnected(true);
 
-          // Unirse a la sala del proyecto
           if (projectId) {
             socketRef.current?.emit("joinProject", projectId);
           }
         });
 
-        // Recibir mensajes anteriores
         socketRef.current.on("previousMessages", (data: Message[]) => {
           setMessages(data);
         });
 
-        // Escuchar nuevos mensajes
         socketRef.current.on("newMessage", (message: Message) => {
-          // Verificar si el mensaje ya existe en nuestro estado
-          // para evitar duplicados
           setMessages((prevMessages) => {
-            // Si el mensaje ya existe (por ID o por contenido+timestamp), no lo añadimos
             const isDuplicate = prevMessages.some(
-              (msg) =>
-                (msg._id && msg._id === message._id) ||
-                (msg.message === message.message &&
-                  msg.user === message.user &&
-                  msg.timestamp === message.timestamp)
+              (msg) => (msg._id && msg._id === message._id) ||
+                (msg.message === message.message && msg.user === message.user && msg.timestamp === message.timestamp)
             );
-
-            if (isDuplicate) {
-              return prevMessages;
-            }
-
-            return [...prevMessages, message];
+            return isDuplicate ? prevMessages : [...prevMessages, message];
           });
         });
 
-        // Manejar errores
-        socketRef.current.on("error", (error: { message: string }) => {
-          console.error("Error en el chat:", error.message);
+        // Error handler
+        socketRef.current.on("connect_error", (error) => {
+          console.error("Error conectando al socket:", error.message);
+          setUsePolling(true); // Cambiar a polling si hay error de conexión
+          setConnected(false);
         });
 
-        // Manejar desconexiones
         socketRef.current.on("disconnect", () => {
           console.log("Desconectado del servidor de chat");
           setConnected(false);
@@ -99,56 +152,87 @@ export default function useChat(
       } catch (error) {
         console.error("Error al inicializar el socket:", error);
         setConnected(false);
+        setUsePolling(true); // Cambiar a polling si hay error de inicialización
       }
     };
 
-    if (projectId && user) {
-      initSocket();
-    }
+    initSocket();
 
-    // Limpiar al desmontar
+    // Cleanup
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
       }
     };
-  }, [projectId, user]);
+  }, [projectId, user, usePolling]);
 
-  // Función para enviar mensajes (usando useCallback para evitar recreaciones innecesarias)
+  // Función para enviar mensajes
   const sendMessage = useCallback(
-    (messageText: string) => {
-      if (
-        !socketRef.current ||
-        !connected ||
-        !messageText.trim() ||
-        isLoading ||
-        !projectId ||
-        !user
-      ) {
+    async (messageText: string) => {
+      if (!messageText.trim() || isLoading || !projectId || !user) {
         return;
       }
 
-      setIsLoading(true); // Indicar que estamos enviando
+      setIsLoading(true);
 
-      const messageData: Omit<Message, "_id"> = {
+      const messageData = {
         projectId,
         user,
         message: messageText.trim(),
         timestamp: new Date().toISOString(),
       };
 
-      socketRef.current.emit("sendMessage", messageData);
+      try {
+        // ID temporal para optimistic UI
+        const tempId = `temp-${Date.now()}`;
+        
+        // Añadir mensaje temporal inmediatamente para mejor UX
+        setMessages(prev => [...prev, { ...messageData, _id: tempId }]);
 
-      // No agregamos el mensaje localmente, esperamos a que vuelva del servidor
-      // Esto evita la duplicación
+        if (usePolling || !connected || !socketRef.current) {
+          // Enviar por API REST
+          const response = await fetch("/api/messages", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(messageData),
+          });
 
-      // Terminar el estado de carga después de un breve momento
-      setTimeout(() => {
+          if (!response.ok) {
+            throw new Error("Error enviando mensaje");
+          }
+
+          const savedMessage = await response.json();
+          
+          // Reemplazar mensaje temporal con el real
+          setMessages(prev => prev.map(msg => 
+            msg._id === tempId ? savedMessage : msg
+          ));
+        } else {
+          // Enviar por Socket.IO
+          socketRef.current.emit("sendMessage", messageData);
+        }
+      } catch (error) {
+        console.error("Error al enviar mensaje:", error);
+        
+        // Eliminar mensaje optimista si falló
+        setMessages(prev => 
+          prev.filter(msg => !msg._id?.startsWith('temp-'))
+        );
+        
+        alert("Error al enviar el mensaje. Por favor, inténtalo de nuevo.");
+      } finally {
         setIsLoading(false);
-      }, 300);
+      }
     },
-    [connected, isLoading, projectId, user]
+    [connected, isLoading, projectId, user, usePolling]
   );
 
-  return { messages, connected, sendMessage, isLoading };
+  return { 
+    messages, 
+    connected: usePolling || connected, // Consideramos "conectado" si usamos polling
+    sendMessage, 
+    isLoading 
+  };
 }
