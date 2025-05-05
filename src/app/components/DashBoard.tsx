@@ -148,8 +148,8 @@ export default function DashBoard() {
             Cerrar sesión
           </button>
         </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <div className="flex items-center justify-center h-[85vh]">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Tareas asignadas */}
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <div className="p-4 bg-blue-600 text-white flex justify-between items-center">
@@ -228,7 +228,7 @@ export default function DashBoard() {
               </Link>
             </div>
             
-            <div className="p-4 max-h-[50vh] overflow-y-auto">
+            <div className="p-4 max-h-[60vh] overflow-y-auto">
               {activeProjects.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <p>No hay proyectos activos actualmente.</p>
@@ -259,7 +259,7 @@ export default function DashBoard() {
               )}
             </div>
             
-            
+            </div>
           </div>
         </div>
 

@@ -98,7 +98,7 @@ export default function Projects() {
         </button>
       </div>
       <SideBar />
-      <main className="flex flex-col h-screen bg-gray-200 text-black md:ml-[16.66667%]">
+      <main className="flex flex-col bg-gray-200 text-black md:ml-[16.66667%] *:h-max">
         <div className="flex flex-col h-screen bg-gray-200 text-black p-6">
           <h1 className="text-3xl font-bold mb-6 md:mt-0 mt-10">Proyectos</h1>
           {isAdmin && (

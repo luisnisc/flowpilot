@@ -6,12 +6,29 @@ import bcrypt from "bcryptjs";
 import GoogleProvider from "next-auth/providers/google";
 import GithubProvider from "next-auth/providers/github";
 
-// Determinar la URL base según el entorno
-const baseUrl =
-  process.env.NEXTAUTH_URL ||
-  (process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : "http://localhost:3000");
+// Configuración explícita para cada entorno
+const isVercel = process.env.VERCEL || false;
+const baseUrl = process.env.NEXTAUTH_URL || 
+  (isVercel ? "https://flowpilotnisc.vercel.app" : "http://localhost:3000");
+
+// Log para depuración
+console.log("Entorno:", isVercel ? "Vercel" : "Local");
+console.log("Base URL:", baseUrl);
+
+// Configurar GitHub con URL explícita de callback
+const githubCredentials = {
+  clientId: isVercel ? process.env.VERCEL_GITHUB_ID : process.env.GITHUB_ID,
+  clientSecret: isVercel ? process.env.VERCEL_GITHUB_SECRET : process.env.GITHUB_SECRET,
+  callbackUrl: `${baseUrl}/api/auth/callback/github`, // Aquí forzamos la URL de callback
+  allowDangerousEmailAccountLinking: true,
+};
+
+// Similar para Google si necesitas diferentes credenciales
+const googleCredentials = {
+  clientId: process.env.GOOGLE_ID,
+  clientSecret: process.env.GOOGLE_SECRET,
+  allowDangerousEmailAccountLinking: true,
+};
 
 export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
@@ -91,16 +108,8 @@ export const authOptions = {
         };
       },
     }),
-    GoogleProvider({
-      clientId: process.env.GOOGLE_ID,
-      clientSecret: process.env.GOOGLE_SECRET,
-      allowDangerousEmailAccountLinking: true,
-    }),
-    GithubProvider({
-      clientId: process.env.GITHUB_ID,
-      clientSecret: process.env.GITHUB_SECRET,
-      allowDangerousEmailAccountLinking: true,
-    }),
+    GoogleProvider(googleCredentials),
+    GithubProvider(githubCredentials),
   ],
 };
 
