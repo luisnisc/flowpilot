@@ -23,20 +23,38 @@ export default function Chat({ projectId }: ChatProps) {
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
   const [sending, setSending] = useState(false);
+  const [wsEnabled, setWsEnabled] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<any>(null);
 
-  // Cargar mensajes iniciales y configurar WebSocket
+  // Cargar mensajes iniciales y configurar WebSocket o polling
   useEffect(() => {
-    fetchMessages();
-    setupWebSocket();
+    fetchMessages(); // Carga inicial
 
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
-    };
-  }, [projectId]);
+    // Intentar WebSocket primero
+    if (wsEnabled) {
+      setupWebSocket();
+
+      // Si después de 5 segundos no hay conexión, usar polling
+      const timeout = setTimeout(() => {
+        if (!connected) {
+          console.log("WebSocket no disponible, usando polling");
+          setWsEnabled(false);
+        }
+      }, 5000);
+
+      return () => {
+        clearTimeout(timeout);
+        if (socketRef.current) {
+          socketRef.current.disconnect();
+        }
+      };
+    } else {
+      // Configurar polling como respaldo
+      const interval = setInterval(fetchMessages, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [projectId, wsEnabled]);
 
   // Scrollear al último mensaje cuando se añaden nuevos mensajes
   useEffect(() => {
@@ -52,16 +70,47 @@ export default function Chat({ projectId }: ChatProps) {
       // Asegurarse de que el servidor socket está listo
       await fetch("/api/socket");
 
-      // Crear conexión
-      socketRef.current = io();
+      // Crear conexión con opciones mejoradas
+      socketRef.current = io({
+        path: "/api/socket",
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 20000,
+        autoConnect: true,
+        transports: ["websocket", "polling"], // Intentar websocket primero
+      });
 
       // Configurar eventos
       socketRef.current.on("connect", () => {
         console.log("Chat conectado al servidor de WebSockets");
         setConnected(true);
 
-        // Unirse a la sala de chat del proyecto
-        socketRef.current.emit("joinProject", projectId);
+        // Unirse a la sala del proyecto al conectar
+        if (projectId) {
+          socketRef.current.emit("joinProject", projectId);
+        }
+      });
+
+      // Manejo de errores y reconexiones
+      socketRef.current.on("connect_error", (err: Error) => {
+        console.error("Error de conexión:", err);
+        setConnected(false);
+      });
+
+      socketRef.current.on("reconnect", (attempt: number) => {
+        console.log(`Reconectado después de ${attempt} intentos`);
+        setConnected(true);
+
+        // Volver a unirse al proyecto tras reconexión
+        if (projectId) {
+          socketRef.current.emit("joinProject", projectId);
+        }
+      });
+
+      socketRef.current.on("disconnect", (reason: string) => {
+        console.log("Desconectado:", reason);
+        setConnected(false);
       });
 
       // Escuchar mensajes previos (históricos)
@@ -107,8 +156,8 @@ export default function Chat({ projectId }: ChatProps) {
         setConnected(false);
       });
     } catch (error) {
-      console.error("Error al inicializar el WebSocket para el chat:", error);
-      setLoading(false);
+      console.error("Error configurando WebSocket:", error);
+      setConnected(false);
     }
   };
 
