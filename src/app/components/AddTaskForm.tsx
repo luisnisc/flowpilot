@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import SideBar from "./SideBar";
 import {
   FiSave,
@@ -19,7 +19,10 @@ export default function AddTaskForm() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const projectId = searchParams.get("projectId");
+
+  // Uso seguro de searchParams
+  const projectId = searchParams ? searchParams.get("projectId") : null;
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +45,7 @@ export default function AddTaskForm() {
     } else if (status === "authenticated" && session?.user?.email) {
       setFormData((prev) => ({
         ...prev,
-        assignedTo: session.user.email,
+        assignedTo: session.user.email || "",
       }));
       fetchProjects();
     }
@@ -115,9 +118,10 @@ export default function AddTaskForm() {
       setSuccess("¡Tarea creada correctamente!");
 
       setTimeout(() => {
-        {projectId
-          ? router.push(`/projects/${projectId}`)
-          : router.push("/tasks");
+        {
+          projectId
+            ? router.push(`/projects/${projectId}`)
+            : router.push("/tasks");
         }
         router.refresh();
       }, 1000);

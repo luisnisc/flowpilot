@@ -236,7 +236,7 @@ export default function DashBoard() {
               ) : (
                 <ul className="space-y-3">
                   {activeProjects.map((project) => (
-                    project.users?.includes(session?.user?.email || session?.user?.name) && (
+                    project.users?.includes(session?.user?.email || session?.user?.name || "") && (
                     <li 
                       key={project._id} 
                       className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow"

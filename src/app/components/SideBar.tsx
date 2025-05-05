@@ -27,9 +27,10 @@ export default function SideBar() {
   useEffect(() => {
     if (session?.user) {
       setUserSettings({
-        id: session.user.email, 
+        id: session.user.email || undefined, 
         name: session.user.name || "",
         email: session.user.email || "",
+        role: "user", 
       });
     }
   }, [session]);

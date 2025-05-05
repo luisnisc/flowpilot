@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 import GoogleProvider from "next-auth/providers/google";
 import GithubProvider from "next-auth/providers/github";
 
-export default NextAuth({
+export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
   adapter: MongoDBAdapter(clientPromise, { databaseName: "app" }),
@@ -57,4 +57,6 @@ export default NextAuth({
       allowDangerousEmailAccountLinking: true,
     }),
   ],
-});
+}
+
+export default NextAuth(authOptions);

@@ -24,9 +24,11 @@ export default function Projects() {
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  if(session?.user?.role === "admin") {
-    setIsAdmin(true);
-  };
+  useEffect(() => {
+    if (session?.user?.role === "admin") {
+      setIsAdmin(true);
+    }
+  }, [session?.user?.role]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -107,34 +109,42 @@ export default function Projects() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.length > 0 ? (
-              projects.map((project) => (
-                project.users?.includes(session?.user?.email)&&(
-                <a href={`/projects/${project._id}`} key={project._id}>
-                  <div
+              projects.map((project) =>
+                // Error: Operador lógico AND como JSX
+                // Corrección: Usar expresión ternaria para renderizado condicional
+                project.users?.includes(session?.user?.email || "") ? (
+                  <Link
+                    href={`/projects/${project._id}`}
                     key={project._id}
-                    className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
+                    passHref
+                    legacyBehavior
                   >
-                    <h2 className="text-xl font-semibold mb-2">
-                      {project.name}
-                    </h2>
-                    <p className="text-gray-600 mb-4">{project.description}</p>
-                    {project.status && (
-                      <span
-                        className={`px-3 py-1 rounded-full text-sm ${
-                          project.status === "active"
-                            ? "bg-green-100 text-green-800"
-                            : project.status === "completed"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-yellow-100 text-yellow-800"
-                        }`}
-                      >
-                        {project.status}
-                      </span>
-                    )}
-                  </div>
-                </a>
-                )
-              ))
+                    <a>
+                      <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                        <h2 className="text-xl font-semibold mb-2">
+                          {project.name}
+                        </h2>
+                        <p className="text-gray-600 mb-4">
+                          {project.description}
+                        </p>
+                        {project.status && (
+                          <span
+                            className={`px-3 py-1 rounded-full text-sm ${
+                              project.status === "active"
+                                ? "bg-green-100 text-green-800"
+                                : project.status === "completed"
+                                ? "bg-blue-100 text-blue-800"
+                                : "bg-yellow-100 text-yellow-800"
+                            }`}
+                          >
+                            {project.status}
+                          </span>
+                        )}
+                      </div>
+                    </a>
+                  </Link>
+                ) : null
+              )
             ) : (
               <div className="col-span-full text-center py-8">
                 <p className="text-gray-500">No hay proyectos disponibles</p>
