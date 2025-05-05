@@ -1,13 +1,11 @@
 import { Server } from "socket.io";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "./auth/[...nextauth]";
+import authOptions  from "./auth/[...nextauth]"; 
 import clientPromise from "../../lib/mongodb";
 import { ObjectId } from "mongodb";
 import { NextApiRequest, NextApiResponse } from "next";
 import { Server as NetServer } from "http";
 import { Socket } from "socket.io";
-import { createClient } from "redis";
-import { createAdapter } from "@socket.io/redis-adapter";
 
 // Definimos un tipo personalizado para nuestro API response
 type SocketServer = NextApiResponse & {
@@ -16,7 +14,7 @@ type SocketServer = NextApiResponse & {
       io?: Server;
     };
   };
-};
+}
 
 // Tipado para mensaje
 interface Message {
@@ -44,43 +42,11 @@ export default async function handler(req: NextApiRequest, res: SocketServer) {
   }
 
   try {
-    // Configurar Redis 
-    const pubClient = createClient({
-      url: process.env.REDIS_URL || "redis://localhost:6379",
-      socket: {
-        reconnectStrategy: (retries:number) => Math.min(retries * 50, 1000),
-      },
-    });
-    const subClient = pubClient.duplicate();
-
-    // Manejar errores de Redis
-    pubClient.on("error", (err: Error) => console.error("Redis pub error:", err));
-    subClient.on("error", (err: Error) => console.error("Redis sub error:", err));
-
-    // Conectar a Redis
-    await Promise.all([pubClient.connect(), subClient.connect()]);
-
-    // Configurar Socket.IO con adaptador Redis
-    const io = new Server(res.socket.server, {
-      cors: {
-        origin: process.env.NEXTAUTH_URL || "https://flowpilot-58se.vercel.app",
-        methods: ["GET", "POST"],
-        credentials: true,
-      },
-      connectionStateRecovery: {
-        // Habilitar recuperación de estado de conexión
-        maxDisconnectionDuration: 2 * 60 * 1000, // 2 minutos
-        skipMiddlewares: true,
-      },
-      // Aumentar tiempo de ping para mantener conexiones vivas
-      pingTimeout: 60000,
-    });
-
-    // Usar adaptador Redis
-    io.adapter(createAdapter(pubClient, subClient));
+    // Configurar Socket.IO
+    const io = new Server(res.socket.server);
     res.socket.server.io = io;
 
-    // El resto de tu código para manejar conexiones
+    // Manejar eventos de socket
     io.on("connection", (socket: Socket) => {
       console.log("Cliente conectado:", socket.id);
 
@@ -160,7 +126,6 @@ export default async function handler(req: NextApiRequest, res: SocketServer) {
       });
     });
 
-    console.log("Socket.IO inicializado con adaptador Redis");
     res.end();
   } catch (error) {
     console.error(

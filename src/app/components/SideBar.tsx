@@ -4,6 +4,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
+import {
+  FiMenu,
+  FiX,
+  FiHome,
+  FiFolder,
+  FiCheckSquare,
+  FiSettings,
+  FiLogOut,
+} from "react-icons/fi";
 
 // Extender la interfaz de usuario para incluir ID
 interface UserSettings {
@@ -16,6 +25,7 @@ interface UserSettings {
 export default function SideBar() {
   const { data: session, status } = useSession();
   const [showModal, setShowModal] = useState<boolean>(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [userSettings, setUserSettings] = useState<UserSettings>({
     name: "",
     email: "",
@@ -23,14 +33,19 @@ export default function SideBar() {
   });
   const pathname = usePathname();
 
+  // Cerrar menú móvil al cambiar de ruta
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
   // Actualizar userSettings cuando session esté disponible
   useEffect(() => {
     if (session?.user) {
       setUserSettings({
-        id: session.user.email || undefined, 
+        id: session.user.email || undefined,
         name: session.user.name || "",
         email: session.user.email || "",
-        role: "user", 
+        role: session.user.role || "user",
       });
     }
   }, [session]);
@@ -47,7 +62,6 @@ export default function SideBar() {
   };
 
   const handleSave = () => {
-    // Obtenemos el email como identificador
     const userEmail = session?.user?.email;
 
     if (!userEmail) {
@@ -82,22 +96,40 @@ export default function SideBar() {
     return pathname === path ? "bg-gray-700" : "";
   };
 
-  return (
-    <div
-      id="sidebar"
-      className="fixed left-0 top-0 w-1/6 h-screen bg-gray-800 text-white flex flex-col items-center py-8"
+  const handleLogout = () => {
+    signOut({ callbackUrl: "/login" });
+  };
+
+  // Mobile toggle button (visible only on mobile)
+  const mobileToggle = (
+    <button
+      onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+      className="fixed top-4 left-4 p-2 bg-gray-800 rounded-md text-white z-50 md:hidden"
+      aria-label="Toggle navigation menu"
     >
-      <Image
-        src="/logoFlowPilot.png"
-        alt="logoFlowPilot"
-        width={250}
-        height={250}
-        className="mt-[-5em]"
-      />
-      <div className="mb-4 mt-[-4em] flex flex-row items-center space-x-6">
+      {mobileMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+    </button>
+  );
+
+  // Content for the sidebar/dropdown
+  const sidebarContent = (
+    <>
+      {/* Logo centrado */}
+      <div className="flex justify-center w-full mb-6 md:mb-0">
+        <Image
+          src="/logoFlowPilot.png"
+          alt="logoFlowPilot"
+          width={150}
+          height={150}
+          className="md:mt-[-5em] w-auto h-auto"
+        />
+      </div>
+
+      {/* Perfil centrado */}
+      <div className="mb-4 md:mt-[-4em] flex flex-row items-center w-full text-center gap-8 justify-center mt-4">
         {session?.user?.image ? (
-          <div className="avatar">
-            <div className="w-12 rounded-full overflow-hidden">
+          <div className="avatar mb-2">
+            <div className="w-12 rounded-full overflow-hidden mx-auto">
               <img
                 src={session.user.image}
                 alt="Imagen de perfil"
@@ -106,66 +138,113 @@ export default function SideBar() {
             </div>
           </div>
         ) : (
-          <span className="text-sm">Bienvenido</span>
+          <span className="text-sm mb-2 text-center w-full">Bienvenido</span>
         )}
-        <div>{session?.user?.name || "Usuario"}</div>
+        <div className="text-center mb-2">
+          {session?.user?.name || "Usuario"}
+        </div>
         <button
           title="Configuración de usuario"
           className="hover:cursor-pointer"
           onClick={() => setShowModal(true)}
           aria-label="Abrir configuración de usuario"
         >
-          <Image
-            src="/userConfig.svg"
-            alt="Configuración"
-            width={20}
-            height={20}
-          />
+          <FiSettings size={20} className="text-white" />
         </button>
       </div>
-      <div className="h-0.25 w-full bg-white mb-6"></div>
-      <nav className="w-full" aria-label="Navegación principal">
-        <ul className="flex flex-col space-y-4">
-          <li>
+
+      <div className="h-0.25 w-full bg-white my-4 md:mb-6"></div>
+
+      {/* Navegación centrada */}
+      <nav className="w-full text-center" aria-label="Navegación principal">
+        <ul className="flex flex-col space-y-2 md:space-y-4 items-center">
+          <li className="w-full">
             <Link
               href="/dashboard"
-              className={`block w-full text-center py-2 hover:bg-gray-700 rounded ${isActive(
+              className={`flex items-center justify-center px-4 py-3 md:py-2 hover:bg-gray-700 rounded w-full ${isActive(
                 "/dashboard"
               )}`}
+              onClick={() => setMobileMenuOpen(false)}
             >
-              Inicio
+              <FiHome className="mr-2" size={18} />
+              <span>Inicio</span>
             </Link>
           </li>
-          <li>
+          <li className="w-full">
             <Link
               href="/projects"
-              className={`block w-full text-center py-2 hover:bg-gray-700 rounded ${isActive(
+              className={`flex items-center justify-center px-4 py-3 md:py-2 hover:bg-gray-700 rounded w-full ${isActive(
                 "/projects"
               )}`}
+              onClick={() => setMobileMenuOpen(false)}
             >
-              Proyectos
+              <FiFolder className="mr-2" size={18} />
+              <span>Proyectos</span>
             </Link>
           </li>
-          <li>
+          <li className="w-full">
             <Link
               href="/tasks"
-              className={`block w-full text-center py-2 hover:bg-gray-700 rounded ${isActive(
+              className={`flex items-center justify-center px-4 py-3 md:py-2 hover:bg-gray-700 rounded w-full ${isActive(
                 "/tasks"
               )}`}
+              onClick={() => setMobileMenuOpen(false)}
             >
-              Tareas
+              <FiCheckSquare className="mr-2" size={18} />
+              <span>Tareas</span>
             </Link>
+          </li>
+          <li className="md:hidden pt-4 mt-4 border-t border-gray-700 w-full">
+            <button
+              onClick={handleLogout}
+              className="flex items-center justify-center w-full px-4 py-3 text-red-300 hover:bg-gray-700 rounded"
+            >
+              <FiLogOut className="mr-2" size={18} />
+              <span>Cerrar sesión</span>
+            </button>
           </li>
         </ul>
       </nav>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile toggle button */}
+      {mobileToggle}
+
+      {/* Desktop sidebar - always visible on md+ screens */}
+      <div className="hidden md:block fixed left-0 top-0 w-1/6 h-screen bg-gray-800 text-white flex flex-col items-center py-8">
+        {sidebarContent}
+      </div>
+
+      {/* Mobile dropdown menu - only visible when toggled */}
+      <div
+        className={`fixed inset-0 z-40 md:hidden ${
+          mobileMenuOpen ? "block" : "hidden"
+        }`}
+      >
+        {/* Backdrop overlay */}
+        <div
+          className="absolute inset-0 bg-black/50"
+          onClick={() => setMobileMenuOpen(false)}
+        ></div>
+
+        {/* Dropdown menu panel - centrado de elementos */}
+        <div className="absolute top-0 left-0 w-4/5 max-w-xs h-screen bg-gray-800 text-white flex flex-col items-center py-16 px-2 overflow-y-auto">
+          {sidebarContent}
+        </div>
+      </div>
+
+      {/* User settings modal */}
       {showModal && (
         <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 "
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
           aria-labelledby="modal-title"
           role="dialog"
           aria-modal="true"
         >
-          <div className="bg-white rounded-lg p-6 w-96 text-white">
+          <div className="bg-white rounded-lg p-6 w-[90%] max-w-md mx-4 md:mx-0 md:w-96 text-white">
             <h2 id="modal-title" className="text-xl font-bold mb-4 text-black">
               Configuración de usuario
             </h2>
@@ -185,7 +264,7 @@ export default function SideBar() {
                   type="text"
                   value={userSettings.name}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border rounded input"
+                  className="w-full px-3 py-2 border rounded input text-black"
                   aria-describedby="name-description"
                 />
               </div>
@@ -199,7 +278,7 @@ export default function SideBar() {
                   type="email"
                   value={userSettings.email}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border rounded input"
+                  className="w-full px-3 py-2 border rounded input text-black"
                   aria-describedby="email-description"
                 />
               </div>
@@ -212,7 +291,7 @@ export default function SideBar() {
                   name="role"
                   value={userSettings.role}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border rounded input select"
+                  className="w-full px-3 py-2 border rounded input select text-black"
                 >
                   <option value="admin">Administrador</option>
                   <option value="user">Usuario</option>
@@ -222,7 +301,7 @@ export default function SideBar() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                  className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
                 >
                   Cancelar
                 </button>
@@ -237,6 +316,6 @@ export default function SideBar() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

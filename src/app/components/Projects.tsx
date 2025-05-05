@@ -98,9 +98,9 @@ export default function Projects() {
         </button>
       </div>
       <SideBar />
-      <main className="flex flex-col h-screen bg-gray-200 text-black ml-[16.66667%]">
+      <main className="flex flex-col h-screen bg-gray-200 text-black md:ml-[16.66667%]">
         <div className="flex flex-col h-screen bg-gray-200 text-black p-6">
-          <h1 className="text-3xl font-bold mb-6">Proyectos</h1>
+          <h1 className="text-3xl font-bold mb-6 md:mt-0 mt-10">Proyectos</h1>
           {isAdmin && (
             <Link href="/projects/create">
               <button className="btn btn-primary mb-4">Crear Proyecto</button>
@@ -110,8 +110,6 @@ export default function Projects() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.length > 0 ? (
               projects.map((project) =>
-                // Error: Operador lógico AND como JSX
-                // Corrección: Usar expresión ternaria para renderizado condicional
                 project.users?.includes(session?.user?.email || "") ? (
                   <Link
                     href={`/projects/${project._id}`}

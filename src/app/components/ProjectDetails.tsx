@@ -11,6 +11,7 @@ import {
 import SideBar from "./SideBar";
 import Chat from "./Chat";
 import Link from "next/link";
+import { FiMenu, FiX } from "react-icons/fi"; // Importar iconos para menú móvil
 
 interface Task {
   _id: string;
@@ -62,7 +63,6 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [columns, setColumns] = useState<ColumnData>(emptyColumns);
-
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -151,12 +151,15 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
     }
   };
 
-  if (status === "loading" || loading) {
+  // Si aún está cargando
+  if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-        <p className="mt-4 text-gray-600">Cargando proyecto...</p>
-      </div>
+      <>
+        <SideBar />
+        <div className="flex items-center justify-center min-h-screen w-full bg-gray-200 md:ml-[16.66667%]">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      </>
     );
   }
 
@@ -245,21 +248,30 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
 
   return (
     <>
+      {/* SideBar ahora es independiente y maneja su propio estado */}
       <SideBar />
-      <main className="flex flex-col h-full bg-gray-200 text-black ml-[19.66667%] p-6">
-        <div className="mb-6">
+
+      {/* Contenido principal - Asegurarnos que sea visible en todas las pantallas */}
+      <main className="min-h-screen bg-gray-200 pt-16 md:pt-6 px-4 py-6 md:p-6 md:ml-[16.66667%] text-black">
+        {/* Header y botones */}
+        <div className="mb-6 relative">
           <button
             onClick={() => router.back()}
             className="mb-4 px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400 transition-colors"
           >
             ← Volver
           </button>
-         
-          <h1 className="text-3xl font-bold">{project.name}</h1>
-          <p className="text-gray-600 mt-2">{project.description}</p>
-          {project.status && (
+
+          <h1 className="text-2xl md:text-3xl font-bold mt-2">
+            {project?.name}
+          </h1>
+          <p className="text-gray-600 mt-2 text-sm md:text-base">
+            {project?.description}
+          </p>
+
+          {project?.status && (
             <span
-              className={`px-3 py-1 rounded-full text-sm mt-2 inline-block ${
+              className={`px-3 py-1 rounded-full text-xs md:text-sm mt-2 inline-block ${
                 project.status === "active"
                   ? "bg-green-100 text-green-800"
                   : project.status === "completed"
@@ -270,32 +282,36 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
               {project.status}
             </span>
           )}
-          <Link 
-          href={`/addTask?projectId=${id}`}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center w-max absolute right-6 top-6"
-        >
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            className="h-5 w-5 mr-2" 
-            fill="none" 
-            viewBox="0 0 24 24" 
-            stroke="currentColor"
+
+          {/* Botón de nueva tarea - reposicionado para móvil */}
+          <Link
+            href={`/addTask?projectId=${id}`}
+            className="px-3 py-1 md:px-4 md:py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center w-max mt-4 md:mt-0 md:absolute md:right-0 md:top-0 text-sm md:text-base"
           >
-            <path 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-              strokeWidth={2} 
-              d="M12 4v16m8-8H4" 
-            />
-          </svg>
-          Nueva tarea
-        </Link>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            Nueva tarea
+          </Link>
         </div>
 
+        {/* Tablero Kanban */}
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="grid grid-cols-4 gap-4">
-            <div className="bg-gray-100 rounded-lg shadow p-4">
-              <h2 className="font-bold text-lg mb-4 text-gray-700">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {/* Columna Por hacer */}
+            <div className="bg-gray-100 rounded-lg shadow p-3 md:p-4">
+              <h2 className="font-bold text-base md:text-lg mb-3 md:mb-4 text-gray-700">
                 Por hacer
               </h2>
               <Droppable droppableId="backlog">
@@ -303,7 +319,7 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className="min-h-[35vh]"
+                    className="min-h-[20vh] md:min-h-[35vh]"
                   >
                     {columns.backlog.map((task, index) => (
                       <Draggable
@@ -316,14 +332,16 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className={`bg-white p-4 rounded shadow mb-3 ${
+                            className={`bg-white p-3 md:p-4 rounded shadow mb-2 md:mb-3 ${
                               snapshot.isDragging ? "shadow-lg" : ""
                             }`}
                           >
-                            <div className="flex justify-between items-center mb-2">
-                              <h3 className="font-semibold">{task.title}</h3>
+                            <div className="flex justify-between items-center mb-1 md:mb-2">
+                              <h3 className="font-semibold text-sm md:text-base">
+                                {task.title}
+                              </h3>
                               <span
-                                className={`px-2 py-1 text-xs rounded-full ${
+                                className={`px-2 py-0.5 text-xs rounded-full ${
                                   task.priority === "high"
                                     ? "bg-red-100 text-red-800"
                                     : task.priority === "medium"
@@ -334,7 +352,7 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                                 {task.priority}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-600">
+                            <p className="text-xs md:text-sm text-gray-600 line-clamp-2">
                               {task.description}
                             </p>
                           </div>
@@ -346,8 +364,10 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                 )}
               </Droppable>
             </div>
-            <div className="bg-blue-50 rounded-lg shadow p-4">
-              <h2 className="font-bold text-lg mb-4 text-blue-700">
+
+            {/* Columna En progreso */}
+            <div className="bg-blue-50 rounded-lg shadow p-3 md:p-4">
+              <h2 className="font-bold text-base md:text-lg mb-3 md:mb-4 text-blue-700">
                 En progreso
               </h2>
               <Droppable droppableId="in_progress">
@@ -355,7 +375,7 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className="min-h-[35vh]"
+                    className="min-h-[20vh] md:min-h-[35vh]"
                   >
                     {columns.in_progress.map((task, index) => (
                       <Draggable
@@ -368,14 +388,16 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className={`bg-white p-4 rounded shadow mb-3 ${
+                            className={`bg-white p-3 md:p-4 rounded shadow mb-2 md:mb-3 ${
                               snapshot.isDragging ? "shadow-lg" : ""
                             }`}
                           >
-                            <div className="flex justify-between items-center mb-2">
-                              <h3 className="font-semibold">{task.title}</h3>
+                            <div className="flex justify-between items-center mb-1 md:mb-2">
+                              <h3 className="font-semibold text-sm md:text-base">
+                                {task.title}
+                              </h3>
                               <span
-                                className={`px-2 py-1 text-xs rounded-full ${
+                                className={`px-2 py-0.5 text-xs rounded-full ${
                                   task.priority === "high"
                                     ? "bg-red-100 text-red-800"
                                     : task.priority === "medium"
@@ -386,7 +408,7 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                                 {task.priority}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-600">
+                            <p className="text-xs md:text-sm text-gray-600 line-clamp-2">
                               {task.description}
                             </p>
                           </div>
@@ -399,8 +421,9 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
               </Droppable>
             </div>
 
-            <div className="bg-yellow-50 rounded-lg shadow p-4">
-              <h2 className="font-bold text-lg mb-4 text-yellow-700">
+            {/* Columna En revisión */}
+            <div className="bg-yellow-50 rounded-lg shadow p-3 md:p-4">
+              <h2 className="font-bold text-base md:text-lg mb-3 md:mb-4 text-yellow-700">
                 En revisión
               </h2>
               <Droppable droppableId="review">
@@ -408,7 +431,7 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className="min-h-[35vh]"
+                    className="min-h-[20vh] md:min-h-[35vh]"
                   >
                     {columns.review.map((task, index) => (
                       <Draggable
@@ -421,14 +444,16 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className={`bg-white p-4 rounded shadow mb-3 ${
+                            className={`bg-white p-3 md:p-4 rounded shadow mb-2 md:mb-3 ${
                               snapshot.isDragging ? "shadow-lg" : ""
                             }`}
                           >
-                            <div className="flex justify-between items-center mb-2">
-                              <h3 className="font-semibold">{task.title}</h3>
+                            <div className="flex justify-between items-center mb-1 md:mb-2">
+                              <h3 className="font-semibold text-sm md:text-base">
+                                {task.title}
+                              </h3>
                               <span
-                                className={`px-2 py-1 text-xs rounded-full ${
+                                className={`px-2 py-0.5 text-xs rounded-full ${
                                   task.priority === "high"
                                     ? "bg-red-100 text-red-800"
                                     : task.priority === "medium"
@@ -439,7 +464,7 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                                 {task.priority}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-600">
+                            <p className="text-xs md:text-sm text-gray-600 line-clamp-2">
                               {task.description}
                             </p>
                           </div>
@@ -452,8 +477,9 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
               </Droppable>
             </div>
 
-            <div className="bg-green-50 rounded-lg shadow p-4">
-              <h2 className="font-bold text-lg mb-4 text-green-700">
+            {/* Columna Completado */}
+            <div className="bg-green-50 rounded-lg shadow p-3 md:p-4">
+              <h2 className="font-bold text-base md:text-lg mb-3 md:mb-4 text-green-700">
                 Completado
               </h2>
               <Droppable droppableId="done">
@@ -461,7 +487,7 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className="min-h-[35vh] "
+                    className="min-h-[20vh] md:min-h-[35vh]"
                   >
                     {columns.done.map((task, index) => (
                       <Draggable
@@ -474,14 +500,16 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className={`bg-white p-4 rounded shadow mb-3 ${
+                            className={`bg-white p-3 md:p-4 rounded shadow mb-2 md:mb-3 ${
                               snapshot.isDragging ? "shadow-lg" : ""
                             }`}
                           >
-                            <div className="flex justify-between items-center mb-2">
-                              <h3 className="font-semibold">{task.title}</h3>
+                            <div className="flex justify-between items-center mb-1 md:mb-2">
+                              <h3 className="font-semibold text-sm md:text-base">
+                                {task.title}
+                              </h3>
                               <span
-                                className={`px-2 py-1 text-xs rounded-full ${
+                                className={`px-2 py-0.5 text-xs rounded-full ${
                                   task.priority === "high"
                                     ? "bg-red-100 text-red-800"
                                     : task.priority === "medium"
@@ -492,7 +520,7 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                                 {task.priority}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-600">
+                            <p className="text-xs md:text-sm text-gray-600 line-clamp-2">
                               {task.description}
                             </p>
                           </div>
@@ -506,20 +534,21 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
             </div>
           </div>
         </DragDropContext>
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow p-6 h-max">
-            <h2 className="font-bold text-xl mb-4 text-gray-800">
-              Usuarios asignados al proyecto
+
+        {/* Sección inferior - Usuarios y Chat */}
+        <div className="mt-4 md:mt-8 grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+          {/* Usuarios asignados */}
+          <div className="bg-white rounded-lg shadow p-4 md:p-6 h-max">
+            <h2 className="font-bold text-lg md:text-xl mb-3 md:mb-4 text-gray-800">
+              Usuarios asignados
             </h2>
 
-           
-
-            {project.users && project.users.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {project?.users && project.users.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                 {project.users.map((user) => (
                   <div
                     key={user}
-                    className="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    className="flex items-center p-2 md:p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                   >
                     <div className="flex-shrink-0">
                       <img
@@ -527,14 +556,14 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                           user
                         )}&background=random&color=fff&size=48`}
                         alt={`Avatar de ${user}`}
-                        className="w-10 h-10 rounded-full border-2 border-white shadow"
+                        className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-white shadow"
                       />
                     </div>
-                    <div className="ml-3">
-                      <div className="text-sm font-medium text-gray-900">
+                    <div className="ml-2 md:ml-3">
+                      <div className="text-xs md:text-sm font-medium text-gray-900 truncate max-w-[120px] sm:max-w-full">
                         {user}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-[10px] md:text-xs text-gray-500">
                         {user.includes("@") ? "Miembro" : "Usuario"}
                       </div>
                     </div>
@@ -542,13 +571,14 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 italic">
+              <p className="text-gray-500 italic text-sm md:text-base">
                 No hay usuarios asignados a este proyecto
               </p>
             )}
           </div>
 
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          {/* Chat */}
+          <div className="bg-white rounded-lg shadow overflow-hidden h-[400px] md:h-[500px]">
             <Chat projectId={id} />
           </div>
         </div>
