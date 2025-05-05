@@ -1,6 +1,6 @@
 import { Server } from "socket.io";
 import { getServerSession } from "next-auth/next";
-import authOptions  from "./auth/[...nextauth]"; 
+import authOptions from "./auth/[...nextauth]";
 import clientPromise from "../../lib/mongodb";
 import { ObjectId } from "mongodb";
 import { NextApiRequest, NextApiResponse } from "next";
@@ -14,7 +14,7 @@ type SocketServer = NextApiResponse & {
       io?: Server;
     };
   };
-}
+};
 
 // Tipado para mensaje
 interface Message {
@@ -42,8 +42,21 @@ export default async function handler(req: NextApiRequest, res: SocketServer) {
   }
 
   try {
-    // Configurar Socket.IO
-    const io = new Server(res.socket.server);
+    // Configurar Socket.IO con path explícito
+    const io = new Server(res.socket.server, {
+      path: "/api/socket",
+      addTrailingSlash: false,
+      cors: {
+        origin: "*",
+        methods: ["GET", "POST"],
+      },
+      // Para mejor rendimiento en entornos serverless
+      transports: ["polling", "websocket"],
+      // Configuraciones para conexiones inestables
+      pingTimeout: 10000,
+      pingInterval: 5000,
+    });
+
     res.socket.server.io = io;
 
     // Manejar eventos de socket

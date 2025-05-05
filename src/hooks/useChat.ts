@@ -39,8 +39,14 @@ export default function useChat(
         // Asegurarnos de que el servidor socket está listo
         await fetch("/api/socket");
 
-        // Crear conexión
-        socketRef.current = io();
+        // Crear conexión con path explícito
+        socketRef.current = io({
+          path: "/api/socket",
+          reconnectionAttempts: 5,
+          reconnectionDelay: 1000,
+          transports: ["polling", "websocket"],
+          timeout: 10000,
+        });
 
         // Configurar eventos
         socketRef.current.on("connect", () => {
