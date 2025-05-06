@@ -28,7 +28,7 @@ interface KanbanTask {
   id: string;
   title: string;
   description: string;
-  status: string;
+  status: "pending" | "in_progress" | "review" | "done";
   priority: "low" | "medium" | "high";
 }
 
@@ -203,7 +203,7 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
     const draggedTask = sourceColumn.find((task) => task.id === draggableId);
     if (!draggedTask) return;
 
-    const columnToStatus: Record<string, string> = {
+    const columnToStatus: Record<string, "pending" | "in_progress" | "review" | "done"> = {
       backlog: "pending",
       in_progress: "in_progress",
       review: "review",
