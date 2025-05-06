@@ -27,7 +27,6 @@ export default function Chat({ projectId }: ChatProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<any>(null);
 
-  // Cargar mensajes iniciales y configurar WebSocket
   useEffect(() => {
     fetchMessages();
     setupWebSocket();
@@ -39,7 +38,6 @@ export default function Chat({ projectId }: ChatProps) {
     };
   }, [projectId]);
 
-  // Scrollear al último mensaje cuando se añaden nuevos mensajes
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -50,22 +48,15 @@ export default function Chat({ projectId }: ChatProps) {
 
   const setupWebSocket = async () => {
     try {
-      // Asegurarse de que el servidor socket está listo
       await fetch("/api/socket");
 
-      // Crear conexión
       socketRef.current = io();
-
-      // Configurar eventos
       socketRef.current.on("connect", () => {
         console.log("Chat conectado al servidor de WebSockets");
         setConnected(true);
 
-        // Unirse a la sala de chat del proyecto
         socketRef.current.emit("joinProject", projectId);
       });
-
-      // Escuchar mensajes previos (históricos)
       socketRef.current.on(
         "previousMessages",
         (previousMessages: Message[]) => {
@@ -75,12 +66,9 @@ export default function Chat({ projectId }: ChatProps) {
         }
       );
 
-      // Escuchar nuevos mensajes
       socketRef.current.on("newMessage", (message: Message) => {
         console.log("Nuevo mensaje recibido:", message);
-        // Asegurarse de no añadir duplicados verificando el ID
         setMessages((prevMessages) => {
-          // Verificar si este mensaje ya existe en la lista
           const messageExists = prevMessages.some(
             (m) =>
               m._id === message._id ||
@@ -96,13 +84,11 @@ export default function Chat({ projectId }: ChatProps) {
           return [...prevMessages, message];
         });
 
-        // Si estamos esperando respuesta de un mensaje enviado, actualizar el estado
         if (sending) {
           setSending(false);
         }
       });
 
-      // Manejar desconexiones
       socketRef.current.on("disconnect", () => {
         console.log("Chat desconectado del servidor");
         setConnected(false);
@@ -115,8 +101,6 @@ export default function Chat({ projectId }: ChatProps) {
 
   const fetchMessages = async () => {
     try {
-      // Ya no necesitamos cargar mensajes por HTTP, los obtendremos vía WebSocket
-      // Este método ahora está principalmente para gestionar el estado de carga inicial
       setLoading(true);
     } catch (err) {
       console.error("Error fetching messages:", err);
@@ -130,10 +114,8 @@ export default function Chat({ projectId }: ChatProps) {
     if (!newMessage.trim() || !session?.user?.email || sending) return;
 
     try {
-      // Indicar que estamos enviando un mensaje
       setSending(true);
 
-      // Crear el objeto mensaje
       const messageData = {
         projectId,
         user: session.user.email,
@@ -141,19 +123,14 @@ export default function Chat({ projectId }: ChatProps) {
         timestamp: new Date().toISOString(),
       };
 
-      // Limpiar campo de entrada inmediatamente para mejor UX
       setNewMessage("");
 
-      // Enviar mensaje vía WebSocket
       if (socketRef.current && connected) {
-        // Simplemente enviar al servidor y esperar la confirmación
         socketRef.current.emit("sendMessage", messageData);
 
-        // Añadir un temporizador de seguridad para restablecer el estado
-        // en caso de que no recibamos confirmación del servidor
         setTimeout(() => {
           setSending(false);
-        }, 3000); // 3 segundos de tiempo máximo de espera
+        }, 3000);
       } else {
         console.error("No se pudo enviar el mensaje: Socket no conectado");
         setSending(false);
@@ -203,7 +180,6 @@ export default function Chat({ projectId }: ChatProps) {
         </div>
       </div>
 
-      {/* Mensajes */}
       <div className="flex-grow overflow-y-auto p-4 space-y-4 max-h-[40vh]">
         {messages.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
@@ -255,7 +231,6 @@ export default function Chat({ projectId }: ChatProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Formulario de envío */}
       <form
         onSubmit={sendMessage}
         className="border-t border-blue-700 p-4 flex items-center space-x-2"

@@ -1,11 +1,10 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth/next";
 import { authOptions as nextAuthOptions } from "../auth/[...nextauth]";
-import { Session } from "next-auth"; // Importa el tipo Session
+import { Session } from "next-auth"; 
 import { AuthOptions } from "next-auth";
 import clientPromise from "../../../lib/mongodb";
 
-// Cast authOptions to the correct type
 const authOptions = nextAuthOptions as AuthOptions;
 
 export default async function handler(
@@ -13,34 +12,27 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    // Proporciona el tipo explícito
     const session = (await getServerSession( req, res, authOptions )) as Session | null;
 
     if (!session || !session.user) {
       return res.status(401).json({ error: "No autorizado" });
     }
-
-    // Obtener el ID (email) del usuario
     const { id } = req.query;
     if (!id || Array.isArray(id)) {
       return res
         .status(400)
         .json({ error: "Identificador de usuario inválido" });
     }
-
-    // Decodificar el email si está codificado en la URL
     const email = decodeURIComponent(id);
 
-    // Conectar a la base de datos
     const client = await clientPromise;
     const db = client.db("app");
     const usersCollection = db.collection("users");
 
-    // GET - Obtener un usuario
     if (req.method === "GET") {
       const user = await usersCollection.findOne(
         { email },
-        { projection: { password: 0 } } // No devolver la contraseña
+        { projection: { password: 0 } } 
       );
 
       if (!user) {
@@ -50,23 +42,19 @@ export default async function handler(
       return res.status(200).json(user);
     }
 
-    // PATCH - Actualizar un usuario
     else if (req.method === "PATCH") {
       const { name, role } = req.body;
 
-      // Validar campos
       if (!name && !role) {
         return res.status(400).json({
           error: "Se requiere al menos un campo para actualizar",
         });
       }
 
-      // Preparar datos para la actualización
       const updateData: Record<string, any> = {};
       if (name) updateData.name = name;
       if (role && session.user.role === "admin") updateData.role = role;
 
-      // Realizar la actualización
       const result = await usersCollection.updateOne(
         { email },
         { $set: updateData }
@@ -76,7 +64,6 @@ export default async function handler(
         return res.status(404).json({ error: "Usuario no encontrado" });
       }
 
-      // Obtener el usuario actualizado (sin la contraseña)
       const updatedUser = await usersCollection.findOne(
         { email },
         { projection: { password: 0 } }
@@ -89,11 +76,7 @@ export default async function handler(
       });
     }
 
-    // DELETE - Eliminar un usuario (solo administradores)
     else if (req.method === "DELETE") {
-      // Solo administradores pueden eliminar usuarios
-
-      // Evitar que un administrador se elimine a sí mismo
       if (email === session.user.email) {
         return res.status(400).json({
           error: "No puedes eliminar tu propia cuenta",
@@ -112,7 +95,6 @@ export default async function handler(
       });
     }
 
-    // Método no permitido
     return res.status(405).json({
       error: `Método ${req.method} no permitido`,
     });

@@ -8,7 +8,6 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { Server as NetServer } from "http";
 import { Socket } from "socket.io";
 
-// Definimos un tipo personalizado para nuestro API response
 type SocketServer = NextApiResponse & {
   socket: {
     server: NetServer & {
@@ -17,7 +16,6 @@ type SocketServer = NextApiResponse & {
   };
 }
 
-// Tipado para mensaje
 interface Message {
   projectId: string;
   user: string;
@@ -26,7 +24,6 @@ interface Message {
   _id?: ObjectId | string;
 }
 
-// Tipado para datos del mensaje
 interface MessageData {
   projectId: string;
   user: string;
@@ -35,7 +32,6 @@ interface MessageData {
 }
 
 export default async function handler(req: NextApiRequest, res: SocketServer) {
-  // Si ya existe una conexión socket, no necesitamos crear una nueva
   if (res.socket.server.io) {
     console.log("Socket ya está configurado");
     res.end();
@@ -43,20 +39,16 @@ export default async function handler(req: NextApiRequest, res: SocketServer) {
   }
 
   try {
-    // Configurar Socket.IO
     const io = new Server(res.socket.server);
     res.socket.server.io = io;
 
-    // Manejar eventos de socket
     io.on("connection", (socket: Socket) => {
       console.log("Cliente conectado:", socket.id);
 
-      // Unirse a una sala específica para el proyecto
       socket.on("joinProject", async (projectId: string) => {
         socket.join(projectId);
         console.log(`Usuario unido al proyecto: ${projectId}`);
 
-        // Cargar mensajes anteriores del proyecto
         try {
           const client = await clientPromise;
           const db = client.db("app");
@@ -67,13 +59,11 @@ export default async function handler(req: NextApiRequest, res: SocketServer) {
             .limit(50)
             .toArray();
 
-          // Convertir ObjectId a string para serialización JSON
           const serializedMessages = messages.map((msg: any) => ({
             ...msg,
             _id: msg._id.toString(),
           }));
 
-          // Enviar mensajes anteriores al cliente
           socket.emit("previousMessages", serializedMessages);
         } catch (error) {
           console.error("Error cargando mensajes:", error);
@@ -81,7 +71,6 @@ export default async function handler(req: NextApiRequest, res: SocketServer) {
         }
       });
 
-      // Escuchar nuevos mensajes
       socket.on("sendMessage", async (data: MessageData) => {
         const { projectId, user, message, timestamp } = data;
 
@@ -91,7 +80,6 @@ export default async function handler(req: NextApiRequest, res: SocketServer) {
         }
 
         try {
-          // Guardar mensaje en la base de datos
           const client = await clientPromise;
           const db = client.db("app");
           const result = await db.collection("messages").insertOne({
@@ -101,16 +89,14 @@ export default async function handler(req: NextApiRequest, res: SocketServer) {
             timestamp: new Date(timestamp),
           });
 
-          // Obtener el mensaje con su _id
           const savedMessage: Message = {
-            _id: result.insertedId.toString(), // Convertir a string para JSON
+            _id: result.insertedId.toString(),
             projectId,
             user,
             message,
             timestamp,
           };
 
-          // Emitir el mensaje a todos los usuarios en la sala del proyecto
           io.to(projectId).emit("newMessage", savedMessage);
         } catch (error) {
           console.error(
@@ -121,7 +107,6 @@ export default async function handler(req: NextApiRequest, res: SocketServer) {
         }
       });
 
-      // Manejar desconexión
       socket.on("disconnect", () => {
         console.log("Cliente desconectado:", socket.id);
       });

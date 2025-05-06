@@ -16,18 +16,15 @@ export default function ProjectDetail() {
   const projectId = params?.id as string;
 
   useEffect(() => {
-    // Redirigir al usuario si no está autenticado
     if (status === "unauthenticated") {
       router.push("/login");
     }
 
-    // Validar que tenemos un ID de proyecto válido
     if (!projectId) {
       router.push("/projects");
     }
   }, [status, projectId, router]);
 
-  // Mostrar estado de carga mientras se verifica la sesión
   if (status === "loading") {
     return (
       <div className="flex items-center justify-center h-screen">

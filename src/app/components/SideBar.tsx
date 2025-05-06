@@ -13,8 +13,6 @@ import {
   FiSettings,
   FiLogOut,
 } from "react-icons/fi";
-
-// Extender la interfaz de usuario para incluir ID
 interface UserSettings {
   id?: string;
   name: string;
@@ -33,12 +31,10 @@ export default function SideBar() {
   });
   const pathname = usePathname();
 
-  // Cerrar menú móvil al cambiar de ruta
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [pathname]);
 
-  // Actualizar userSettings cuando session esté disponible
   useEffect(() => {
     if (session?.user) {
       setUserSettings({
@@ -50,7 +46,6 @@ export default function SideBar() {
     }
   }, [session]);
 
-  // Handler para actualizar los campos del formulario
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -100,7 +95,6 @@ export default function SideBar() {
     signOut({ callbackUrl: "/login" });
   };
 
-  // Mobile toggle button (visible only on mobile)
   const mobileToggle = (
     <button
       onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -111,10 +105,8 @@ export default function SideBar() {
     </button>
   );
 
-  // Content for the sidebar/dropdown
   const sidebarContent = (
     <>
-      {/* Logo centrado */}
       <div className="flex justify-center w-full mb-6 md:mb-0">
         <Image
           src="/logoFlowPilot.png"
@@ -125,7 +117,6 @@ export default function SideBar() {
         />
       </div>
 
-      {/* Perfil centrado */}
       <div className="mb-4 md:mt-[-4em] flex flex-row items-center w-full text-center gap-8 justify-center mt-4">
         {session?.user?.image ? (
           <div className="avatar mb-2">
@@ -155,7 +146,6 @@ export default function SideBar() {
 
       <div className="h-0.25 w-full bg-white my-4 md:mb-6"></div>
 
-      {/* Navegación centrada */}
       <nav className="w-full text-center" aria-label="Navegación principal">
         <ul className="flex flex-col space-y-2 md:space-y-4 items-center">
           <li className="w-full">
@@ -210,33 +200,27 @@ export default function SideBar() {
 
   return (
     <>
-      {/* Mobile toggle button */}
       {mobileToggle}
 
-      {/* Desktop sidebar - always visible on md+ screens */}
       <div className="hidden md:block fixed left-0 top-0 w-1/6 h-screen bg-gray-800 text-white flex flex-col items-center py-8">
         {sidebarContent}
       </div>
 
-      {/* Mobile dropdown menu - only visible when toggled */}
       <div
         className={`fixed inset-0 z-40 md:hidden ${
           mobileMenuOpen ? "block" : "hidden"
         }`}
       >
-        {/* Backdrop overlay */}
         <div
           className="absolute inset-0 bg-black/50"
           onClick={() => setMobileMenuOpen(false)}
         ></div>
 
-        {/* Dropdown menu panel - centrado de elementos */}
         <div className="absolute top-0 left-0 w-4/5 max-w-xs h-screen bg-gray-800 text-white flex flex-col items-center py-16 px-2 overflow-y-auto">
           {sidebarContent}
         </div>
       </div>
 
-      {/* User settings modal */}
       {showModal && (
         <div
           className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"

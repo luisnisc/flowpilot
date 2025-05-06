@@ -4,7 +4,7 @@ import  authOptions  from "./auth/[...nextauth]";
 import clientPromise from "../../lib/mongodb";
 import { ObjectId } from "mongodb";
 
-// Definir una interfaz para el tipo de sesión esperado
+
 interface SessionUser {
   user?: {
     name?: string;
@@ -30,26 +30,22 @@ export default async function handler(
       return res.status(401).json({ error: "Not authenticated" });
     }
 
-    // Connect to MongoDB
+    
     const client = await clientPromise;
     const db = client.db("app");
     const messagesCollection = db.collection("messages");
 
-    // Handle GET request - Retrieve messages for a project
+    
     if (req.method === "GET") {
       const { projectId } = req.query;
 
       if (!projectId) {
         return res.status(400).json({ error: "Project ID is required" });
       }
-
-      // Find messages for the project and sort by timestamp
       const messages = await messagesCollection
         .find({ projectId: projectId as string })
         .sort({ timestamp: 1 })
         .toArray();
-
-      // Convert MongoDB ObjectIds to strings for JSON serialization
       const serializedMessages = messages.map((message) => ({
         ...message,
         _id: message._id.toString(),
@@ -57,8 +53,6 @@ export default async function handler(
 
       return res.status(200).json(serializedMessages);
     }
-
-    // Handle POST request - Create a new message
     else if (req.method === "POST") {
       const { projectId, message, user } = req.body;
 
@@ -67,8 +61,6 @@ export default async function handler(
           .status(400)
           .json({ error: "Project ID and message are required" });
       }
-
-      // Ensure the user can only send messages as themselves
       if (user !== session.user.email) {
         return res
           .status(403)
@@ -90,8 +82,6 @@ export default async function handler(
         ...newMessage,
       });
     }
-
-    // Handle unsupported HTTP methods
     else {
       res.setHeader("Allow", ["GET", "POST"]);
       return res

@@ -36,12 +36,10 @@ export default function DashBoard() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
 
-  // Fetch data when component mounts
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
     } else if (status === "authenticated") {
-      // Fetch tasks and projects simultaneously
       Promise.all([
         fetch("/api/tasks", {
           method: "GET",
@@ -74,19 +72,16 @@ export default function DashBoard() {
     }
   }, [status, router]);
 
-  // Filter tasks assigned to current user that are not completed
   const userTasks = tasks.filter(
     (task) => 
       task.assignedTo === session?.user?.email && 
       task.status !== "done"
   );
 
-  // Filter active projects (not completed)
   const activeProjects = projects.filter(
     (project) => project.status !== "completed"
   );
 
-  // Get priority color
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "high":
@@ -100,7 +95,6 @@ export default function DashBoard() {
     }
   };
 
-  // Get status icon
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "pending":
@@ -150,7 +144,6 @@ export default function DashBoard() {
         </div>
         <div className="flex items-center justify-center h-[85vh]">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Tareas asignadas */}
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <div className="p-4 bg-blue-600 text-white flex justify-between items-center">
               <div className="flex items-center">
@@ -213,7 +206,6 @@ export default function DashBoard() {
             </div>
           </div>
 
-          {/* Proyectos actuales */}
           <div className="bg-white rounded-lg shadow-md overflow-hidden h-max">
             <div className="p-4 bg-green-600 text-white flex justify-between items-center">
               <div className="flex items-center">
@@ -263,7 +255,6 @@ export default function DashBoard() {
           </div>
         </div>
 
-        {/* Acciones rápidas para móvil */}
         <div className="mt-6 lg:hidden">
           <div className="bg-white rounded-lg shadow-md p-4">
             <h2 className="text-lg font-semibold mb-4">Acciones rápidas</h2>

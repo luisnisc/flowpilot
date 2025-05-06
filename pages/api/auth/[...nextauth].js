@@ -6,16 +6,13 @@ import bcrypt from "bcryptjs";
 import GoogleProvider from "next-auth/providers/google";
 import GithubProvider from "next-auth/providers/github";
 
-// Configuración explícita para cada entorno
 const isVercel = process.env.VERCEL || false;
 const baseUrl = process.env.NEXTAUTH_URL || 
   (isVercel ? "https://flowpilotnisc.vercel.app" : "http://localhost:3000");
 
-// Log para depuración
 console.log("Entorno:", isVercel ? "Vercel" : "Local");
 console.log("Base URL:", baseUrl);
 
-// Configurar GitHub con URL explícita de callback
 const githubCredentials = {
   clientId: isVercel ? process.env.VERCEL_GITHUB_ID : process.env.GITHUB_ID,
   clientSecret: isVercel ? process.env.VERCEL_GITHUB_SECRET : process.env.GITHUB_SECRET,
@@ -23,7 +20,6 @@ const githubCredentials = {
   allowDangerousEmailAccountLinking: true,
 };
 
-// Similar para Google si necesitas diferentes credenciales
 const googleCredentials = {
   clientId: process.env.GOOGLE_ID,
   clientSecret: process.env.GOOGLE_SECRET,
@@ -35,14 +31,10 @@ export const authOptions = {
   debug: process.env.NODE_ENV === "development",
   adapter: MongoDBAdapter(clientPromise, { databaseName: "app" }),
   session: { strategy: "jwt" },
-
-  // URLs personalizadas para manejar múltiples entornos
   urls: {
     baseUrl,
     origin: baseUrl,
   },
-
-  // Mejores callbacks para manejar redirecciones
   callbacks: {
     async jwt({ token, user, account, profile }) {
       if (user) {
@@ -65,11 +57,9 @@ export const authOptions = {
       }
       return session;
     },
-    // Manejo adecuado de redirecciones
     async redirect({ url, baseUrl }) {
-      // Si la URL es relativa, concatenarla con baseUrl
       if (url.startsWith("/")) return `${baseUrl}${url}`;
-      // Permitir redirecciones a dominios válidos
+
       if (new URL(url).origin === baseUrl) return url;
       if (
         url.startsWith("http://localhost:3000") &&

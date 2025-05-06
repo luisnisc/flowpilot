@@ -20,7 +20,6 @@ export default function AddTaskForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Uso seguro de searchParams
   const projectId = searchParams ? searchParams.get("projectId") : null;
 
   const [loading, setLoading] = useState(true);
@@ -29,13 +28,12 @@ export default function AddTaskForm() {
   const [success, setSuccess] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
 
-  // Formulario
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     status: "pending",
     priority: "medium",
-    project: projectId || "", // Preseleccionar el proyecto si existe en la URL
+    project: projectId || "", 
     assignedTo: "",
   });
 
@@ -133,7 +131,6 @@ export default function AddTaskForm() {
     }
   };
 
-  // Renderizar estado de carga
   if (status === "loading" || loading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-gray-200">
@@ -156,15 +153,12 @@ export default function AddTaskForm() {
 
         <div className="max-w-2xl w-full mx-auto">
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            {/* Cabecera del formulario */}
             <div className="bg-blue-600 text-white p-4 md:p-6">
               <h1 className="text-xl md:text-2xl font-bold">Nueva Tarea</h1>
               <p className="mt-1 text-blue-100 text-sm md:text-base">
                 Completa el formulario para crear una nueva tarea
               </p>
             </div>
-
-            {/* Mensajes de error o éxito */}
             {error && (
               <div className="mx-4 md:mx-6 mt-4 flex items-center bg-red-50 border-l-4 border-red-500 p-4 text-red-700">
                 <FiAlertTriangle className="flex-shrink-0 mr-3" />
@@ -179,7 +173,6 @@ export default function AddTaskForm() {
               </div>
             )}
 
-            {/* Formulario */}
             <form onSubmit={handleSubmit} className="p-4 md:p-6">
               <div className="space-y-4 md:space-y-6">
                 <div>

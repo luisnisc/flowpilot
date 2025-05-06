@@ -11,7 +11,8 @@ import {
 import SideBar from "./SideBar";
 import Chat from "./Chat";
 import Link from "next/link";
-import { FiMenu, FiX } from "react-icons/fi"; // Importar iconos para menú móvil
+import { FiMenu, FiX } from "react-icons/fi";
+import useProjectSync from "@/hooks/useProjectSync";
 
 interface Task {
   _id: string;
@@ -45,7 +46,7 @@ interface ColumnData {
   in_progress: KanbanTask[];
   review: KanbanTask[];
   done: KanbanTask[];
-  [key: string]: KanbanTask[]; // Índice dinámico para acceso por strings
+  [key: string]: KanbanTask[];
 }
 
 const emptyColumns: ColumnData = {
@@ -62,10 +63,17 @@ interface ProjectDetailsProps {
 export default function ProjectDetails({ id }: ProjectDetailsProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [columns, setColumns] = useState<ColumnData>(emptyColumns);
+  const [initialColumns, setInitialColumns] =
+    useState<ColumnData>(emptyColumns);
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
+
+  const { columns, setColumns, connected, updateTask } = useProjectSync(
+    id,
+    initialColumns
+  );
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -142,7 +150,9 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
         }
       });
 
+      setInitialColumns(newColumns);
       setColumns(newColumns);
+      setInitialDataLoaded(true);
       setLoading(false);
     } catch (err) {
       console.error("Error fetching project data:", err);
@@ -151,7 +161,6 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
     }
   };
 
-  // Si aún está cargando
   if (loading) {
     return (
       <>
@@ -226,6 +235,12 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
 
       updateTaskStatus(draggedTask.id, columnToStatus[destination.droppableId]);
     }
+
+    updateTask(
+      draggedTask.id,
+      columnToStatus[destination.droppableId],
+      updatedTask
+    );
   };
 
   const updateTaskStatus = async (taskId: string, newStatus: string) => {
@@ -248,13 +263,9 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
 
   return (
     <>
-      {/* SideBar ahora es independiente y maneja su propio estado */}
       <SideBar />
 
-      {/* Contenido principal - Asegurarnos que sea visible en todas las pantallas */}
       <main className="min-h-screen bg-gray-200 pt-16 md:pt-6 px-4 py-6 md:p-6 md:ml-[16.66667%] text-black">
-        {/* Header y botones */}
-        <div className="mb-6 relative">
           <button
             onClick={() => router.back()}
             className="mb-4 px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400 transition-colors"
@@ -268,7 +279,7 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
           <p className="text-gray-600 mt-2 text-sm md:text-base">
             {project?.description}
           </p>
-
+          <div className="flex flex-row gap-4">
           {project?.status && (
             <span
               className={`px-3 py-1 rounded-full text-xs md:text-sm mt-2 inline-block ${
@@ -280,10 +291,11 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
               }`}
             >
               {project.status}
+              
             </span>
+            
           )}
 
-          {/* Botón de nueva tarea - reposicionado para móvil */}
           <Link
             href={`/addTask?projectId=${id}`}
             className="px-3 py-1 md:px-4 md:py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center w-max mt-4 md:mt-0 md:absolute md:right-0 md:top-0 text-sm md:text-base"
@@ -306,10 +318,8 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
           </Link>
         </div>
 
-        {/* Tablero Kanban */}
         <DragDropContext onDragEnd={onDragEnd}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {/* Columna Por hacer */}
             <div className="bg-gray-100 rounded-lg shadow p-3 md:p-4">
               <h2 className="font-bold text-base md:text-lg mb-3 md:mb-4 text-gray-700">
                 Por hacer
@@ -365,7 +375,6 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
               </Droppable>
             </div>
 
-            {/* Columna En progreso */}
             <div className="bg-blue-50 rounded-lg shadow p-3 md:p-4">
               <h2 className="font-bold text-base md:text-lg mb-3 md:mb-4 text-blue-700">
                 En progreso
@@ -421,7 +430,6 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
               </Droppable>
             </div>
 
-            {/* Columna En revisión */}
             <div className="bg-yellow-50 rounded-lg shadow p-3 md:p-4">
               <h2 className="font-bold text-base md:text-lg mb-3 md:mb-4 text-yellow-700">
                 En revisión
@@ -477,7 +485,6 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
               </Droppable>
             </div>
 
-            {/* Columna Completado */}
             <div className="bg-green-50 rounded-lg shadow p-3 md:p-4">
               <h2 className="font-bold text-base md:text-lg mb-3 md:mb-4 text-green-700">
                 Completado
@@ -535,9 +542,7 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
           </div>
         </DragDropContext>
 
-        {/* Sección inferior - Usuarios y Chat */}
         <div className="mt-4 md:mt-8 grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-          {/* Usuarios asignados */}
           <div className="bg-white rounded-lg shadow p-4 md:p-6 h-max">
             <h2 className="font-bold text-lg md:text-xl mb-3 md:mb-4 text-gray-800">
               Usuarios asignados
@@ -577,7 +582,6 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
             )}
           </div>
 
-          {/* Chat */}
           <div className="bg-white rounded-lg shadow overflow-hidden h-[400px] md:h-[500px]">
             <Chat projectId={id} />
           </div>

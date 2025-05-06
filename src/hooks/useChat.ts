@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
 
-// Definir interfaces para los tipos
 interface Message {
   _id?: string;
   projectId: string;
@@ -29,19 +28,16 @@ export default function useChat(
   const [usePolling, setUsePolling] = useState<boolean>(false);
   const isVercel = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
   
-  // Si estamos en Vercel, usar polling por defecto
   useEffect(() => {
     if (isVercel) {
       setUsePolling(true);
     }
   }, [isVercel]);
 
-  // Actualizar la referencia cuando cambian los mensajes
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
 
-  // Cargar mensajes iniciales y configurar polling si es necesario
   useEffect(() => {
     if (!projectId) return;
 
@@ -62,13 +58,11 @@ export default function useChat(
 
     fetchMessages();
 
-    // Si usamos polling, configurar intervalo
     let pollingInterval: NodeJS.Timeout | null = null;
     
     if (usePolling && projectId) {
       pollingInterval = setInterval(async () => {
         try {
-          // Solo buscar mensajes más nuevos que el último que tenemos
           const lastTimestamp = messagesRef.current.length > 0 
             ? messagesRef.current[messagesRef.current.length - 1].timestamp 
             : '';
@@ -96,17 +90,14 @@ export default function useChat(
     };
   }, [projectId, usePolling]);
 
-  // Socket.IO setup - solo si no estamos usando polling
   useEffect(() => {
     if (usePolling || !projectId || !user) return;
 
     const initSocket = async () => {
       try {
-        // Asegurarnos de que el servidor socket está listo
         await fetch("/api/socket");
 
-        // Crear conexión con path explícito
-        socketRef.current = io("/", {  // URL base
+        socketRef.current = io("/", {  
           path: "/api/socket",
           reconnectionAttempts: 5,
           reconnectionDelay: 1000,
@@ -114,7 +105,6 @@ export default function useChat(
           timeout: 10000,
         });
 
-        // Configurar eventos socket...
         socketRef.current.on("connect", () => {
           console.log("Conectado al servidor de chat");
           setConnected(true);
@@ -138,10 +128,9 @@ export default function useChat(
           });
         });
 
-        // Error handler
         socketRef.current.on("connect_error", (error) => {
           console.error("Error conectando al socket:", error.message);
-          setUsePolling(true); // Cambiar a polling si hay error de conexión
+          setUsePolling(true); 
           setConnected(false);
         });
 
@@ -152,13 +141,12 @@ export default function useChat(
       } catch (error) {
         console.error("Error al inicializar el socket:", error);
         setConnected(false);
-        setUsePolling(true); // Cambiar a polling si hay error de inicialización
+        setUsePolling(true);
       }
     };
 
     initSocket();
 
-    // Cleanup
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
@@ -166,7 +154,7 @@ export default function useChat(
     };
   }, [projectId, user, usePolling]);
 
-  // Función para enviar mensajes
+  
   const sendMessage = useCallback(
     async (messageText: string) => {
       if (!messageText.trim() || isLoading || !projectId || !user) {
@@ -183,14 +171,13 @@ export default function useChat(
       };
 
       try {
-        // ID temporal para optimistic UI
+
         const tempId = `temp-${Date.now()}`;
         
-        // Añadir mensaje temporal inmediatamente para mejor UX
         setMessages(prev => [...prev, { ...messageData, _id: tempId }]);
 
         if (usePolling || !connected || !socketRef.current) {
-          // Enviar por API REST
+
           const response = await fetch("/api/messages", {
             method: "POST",
             headers: {
@@ -205,18 +192,15 @@ export default function useChat(
 
           const savedMessage = await response.json();
           
-          // Reemplazar mensaje temporal con el real
           setMessages(prev => prev.map(msg => 
             msg._id === tempId ? savedMessage : msg
           ));
         } else {
-          // Enviar por Socket.IO
           socketRef.current.emit("sendMessage", messageData);
         }
       } catch (error) {
         console.error("Error al enviar mensaje:", error);
         
-        // Eliminar mensaje optimista si falló
         setMessages(prev => 
           prev.filter(msg => !msg._id?.startsWith('temp-'))
         );
@@ -231,7 +215,7 @@ export default function useChat(
 
   return { 
     messages, 
-    connected: usePolling || connected, // Consideramos "conectado" si usamos polling
+    connected: usePolling || connected, 
     sendMessage, 
     isLoading 
   };

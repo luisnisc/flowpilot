@@ -5,7 +5,7 @@ import Image from "next/image";
 export default function LoginPage() {
   return (
     <>
-    <div className='bg-black rounded-br-3xl w-80 h-20 absolute top-0 left-0 flex items-center justify-center'>
+    <div className='bg-black rounded-br-3xl w-35 md:w-80 h-15 absolute top-0 left-0 flex items-center justify-center'>
     <Image
       src="/logoFlowPilot.png"
       alt="Logo"

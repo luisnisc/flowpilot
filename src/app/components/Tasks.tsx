@@ -13,7 +13,6 @@ import {
   FaSave,
 } from "react-icons/fa";
 
-// Interfaces para tipado
 interface Task {
   _id: string;
   title: string;
@@ -40,7 +39,6 @@ export default function Tasks() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
-  // Estado para el modal de edición
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -150,14 +148,12 @@ export default function Tasks() {
         throw new Error("Error al actualizar la tarea");
       }
 
-      // Actualizar el estado local con la tarea editada
       setTasks(
         tasks.map((task) => (task._id === editingTask._id ? editingTask : task))
       );
 
       setUpdateSuccess(true);
 
-      // Cerrar el modal después de un breve momento
       setTimeout(() => {
         setShowEditModal(false);
         setEditingTask(null);
@@ -363,7 +359,6 @@ export default function Tasks() {
         )}
       </main>
 
-      {/* Modal para editar tarea */}
       {showEditModal && editingTask && (
         <div className="fixed inset-0 bg-gray-800/80 flex items-center justify-center z-50 p-4 text-black">
           <div className="bg-white rounded-lg shadow-xl overflow-hidden w-full max-w-md md:max-w-lg animate-fade-in">
@@ -526,7 +521,6 @@ export default function Tasks() {
         </div>
       )}
 
-      {/* Modal para confirmar eliminación */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-6 max-w-md w-full animate-fade-in">
