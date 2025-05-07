@@ -30,6 +30,8 @@ interface KanbanTask {
   description: string;
   status: "pending" | "in_progress" | "review" | "done";
   priority: "low" | "medium" | "high";
+  assignedTo?: string;
+  assignedToName?: string;
 }
 
 interface Project {
@@ -138,6 +140,10 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
           description: task.description,
           priority: task.priority,
           status: task.status,
+          assignedTo: task.assignedTo,
+          assignedToName: task.assignedTo
+            ? task.assignedTo.split("@")[0]
+            : undefined,
         };
         if (task.status === "pending") {
           newColumns.backlog.push(kanbanTask);
@@ -284,6 +290,53 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
     }
   };
 
+  // Función helper para renderizar la tarjeta de tarea (evitar duplicación de código)
+  const renderTaskCard = (task: KanbanTask, provided: any, snapshot: any) => (
+    <div
+      ref={provided.innerRef}
+      {...provided.draggableProps}
+      {...provided.dragHandleProps}
+      className={`bg-white p-3 md:p-4 rounded shadow mb-2 md:mb-3 ${
+        snapshot.isDragging ? "shadow-lg" : ""
+      }`}
+    >
+      <div className="flex justify-between items-center mb-1 md:mb-2">
+        <div className="flex items-center">
+          {/* Avatar del usuario asignado */}
+          {task.assignedTo && (
+            <div className="flex-shrink-0 mr-2">
+              <img
+                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                  task.assignedToName || task.assignedTo
+                )}&background=random&color=fff&size=32`}
+                alt={`${task.assignedToName || task.assignedTo}`}
+                title={`Asignado a: ${task.assignedToName || task.assignedTo}`}
+                className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
+              />
+            </div>
+          )}
+          <h3 className="font-semibold text-sm md:text-base truncate max-w-[150px]">
+            {task.title}
+          </h3>
+        </div>
+        <span
+          className={`px-2 py-0.5 text-xs rounded-full ${
+            task.priority === "high"
+              ? "bg-red-100 text-red-800"
+              : task.priority === "medium"
+              ? "bg-yellow-100 text-yellow-800"
+              : "bg-green-100 text-green-800"
+          }`}
+        >
+          {task.priority}
+        </span>
+      </div>
+      <p className="text-xs md:text-sm text-gray-600 line-clamp-2">
+        {task.description}
+      </p>
+    </div>
+  );
+
   return (
     <>
       <SideBar />
@@ -314,6 +367,22 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
               {project.status}
             </span>
           )}
+          <div className="px-3 py-1 rounded-full text-xs md:text-sm mt-2 inline-block ">
+            <div
+              className={`flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-medium ${
+                connected
+                  ? "bg-green-100 text-green-800"
+                  : "bg-red-100 text-red-800"
+              }`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  connected ? "bg-green-500" : "bg-red-500"
+                }`}
+              ></span>
+              <span>{connected ? "Conectado" : "Desconectado"}</span>
+            </div>
+          </div>
 
           <Link
             href={`/addTask?projectId=${id}`}
@@ -356,36 +425,9 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                         draggableId={task.id}
                         index={index}
                       >
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            className={`bg-white p-3 md:p-4 rounded shadow mb-2 md:mb-3 ${
-                              snapshot.isDragging ? "shadow-lg" : ""
-                            }`}
-                          >
-                            <div className="flex justify-between items-center mb-1 md:mb-2">
-                              <h3 className="font-semibold text-sm md:text-base">
-                                {task.title}
-                              </h3>
-                              <span
-                                className={`px-2 py-0.5 text-xs rounded-full ${
-                                  task.priority === "high"
-                                    ? "bg-red-100 text-red-800"
-                                    : task.priority === "medium"
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : "bg-green-100 text-green-800"
-                                }`}
-                              >
-                                {task.priority}
-                              </span>
-                            </div>
-                            <p className="text-xs md:text-sm text-gray-600 line-clamp-2">
-                              {task.description}
-                            </p>
-                          </div>
-                        )}
+                        {(provided, snapshot) =>
+                          renderTaskCard(task, provided, snapshot)
+                        }
                       </Draggable>
                     ))}
                     {provided.placeholder}
@@ -411,36 +453,9 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                         draggableId={task.id}
                         index={index}
                       >
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            className={`bg-white p-3 md:p-4 rounded shadow mb-2 md:mb-3 ${
-                              snapshot.isDragging ? "shadow-lg" : ""
-                            }`}
-                          >
-                            <div className="flex justify-between items-center mb-1 md:mb-2">
-                              <h3 className="font-semibold text-sm md:text-base">
-                                {task.title}
-                              </h3>
-                              <span
-                                className={`px-2 py-0.5 text-xs rounded-full ${
-                                  task.priority === "high"
-                                    ? "bg-red-100 text-red-800"
-                                    : task.priority === "medium"
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : "bg-green-100 text-green-800"
-                                }`}
-                              >
-                                {task.priority}
-                              </span>
-                            </div>
-                            <p className="text-xs md:text-sm text-gray-600 line-clamp-2">
-                              {task.description}
-                            </p>
-                          </div>
-                        )}
+                        {(provided, snapshot) =>
+                          renderTaskCard(task, provided, snapshot)
+                        }
                       </Draggable>
                     ))}
                     {provided.placeholder}
@@ -466,36 +481,9 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                         draggableId={task.id}
                         index={index}
                       >
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            className={`bg-white p-3 md:p-4 rounded shadow mb-2 md:mb-3 ${
-                              snapshot.isDragging ? "shadow-lg" : ""
-                            }`}
-                          >
-                            <div className="flex justify-between items-center mb-1 md:mb-2">
-                              <h3 className="font-semibold text-sm md:text-base">
-                                {task.title}
-                              </h3>
-                              <span
-                                className={`px-2 py-0.5 text-xs rounded-full ${
-                                  task.priority === "high"
-                                    ? "bg-red-100 text-red-800"
-                                    : task.priority === "medium"
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : "bg-green-100 text-green-800"
-                                }`}
-                              >
-                                {task.priority}
-                              </span>
-                            </div>
-                            <p className="text-xs md:text-sm text-gray-600 line-clamp-2">
-                              {task.description}
-                            </p>
-                          </div>
-                        )}
+                        {(provided, snapshot) =>
+                          renderTaskCard(task, provided, snapshot)
+                        }
                       </Draggable>
                     ))}
                     {provided.placeholder}
@@ -521,36 +509,9 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                         draggableId={task.id}
                         index={index}
                       >
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            className={`bg-white p-3 md:p-4 rounded shadow mb-2 md:mb-3 ${
-                              snapshot.isDragging ? "shadow-lg" : ""
-                            }`}
-                          >
-                            <div className="flex justify-between items-center mb-1 md:mb-2">
-                              <h3 className="font-semibold text-sm md:text-base">
-                                {task.title}
-                              </h3>
-                              <span
-                                className={`px-2 py-0.5 text-xs rounded-full ${
-                                  task.priority === "high"
-                                    ? "bg-red-100 text-red-800"
-                                    : task.priority === "medium"
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : "bg-green-100 text-green-800"
-                                }`}
-                              >
-                                {task.priority}
-                              </span>
-                            </div>
-                            <p className="text-xs md:text-sm text-gray-600 line-clamp-2">
-                              {task.description}
-                            </p>
-                          </div>
-                        )}
+                        {(provided, snapshot) =>
+                          renderTaskCard(task, provided, snapshot)
+                        }
                       </Draggable>
                     ))}
                     {provided.placeholder}
@@ -603,23 +564,6 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
 
           <div className="bg-white rounded-lg shadow overflow-hidden h-[400px] md:h-[500px]">
             <Chat projectId={id} />
-          </div>
-        </div>
-
-        <div className="fixed bottom-4 right-4 z-50">
-          <div
-            className={`flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-medium ${
-              connected
-                ? "bg-green-100 text-green-800"
-                : "bg-red-100 text-red-800"
-            }`}
-          >
-            <span
-              className={`w-2 h-2 rounded-full ${
-                connected ? "bg-green-500" : "bg-red-500"
-              }`}
-            ></span>
-            <span>{connected ? "Conectado" : "Desconectado"}</span>
           </div>
         </div>
       </main>

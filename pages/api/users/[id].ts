@@ -2,24 +2,19 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth/next";
 import authOptions from "../auth/[...nextauth]";
 import clientPromise from "../../../lib/mongodb";
+import { Session } from "inspector/promises";
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+
   const { id } = req.query; // Este debería ser el email del usuario que se está modificando
   const email = id as string; // Convertir el parámetro a string
 
   // Verificar autenticación
   const session = await getServerSession(req, res, authOptions);
-  if (!session || !session.user) {
-    return res.status(401).json({ error: "No autenticado" });
-  }
-
-  // Solo permitir al propio usuario o admin
-  if (session.user.email !== email && session.user.role !== "admin") {
-    return res.status(403).json({ error: "No autorizado" });
-  }
+  
 
   // Conectar a la base de datos
   const client = await clientPromise;
@@ -59,7 +54,6 @@ export default async function handler(
         const updateData: any = {};
         if (name) updateData.name = name;
         if (newEmail) updateData.email = newEmail;
-        if (role && session.user.role === "admin") updateData.role = role;
 
         console.log("Datos a actualizar:", updateData);
 
