@@ -72,7 +72,7 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
 
   const { columns, setColumns, connected, updateTask } = useProjectSync(
     id,
-    initialColumns
+    emptyColumns
   );
 
   useEffect(() => {
@@ -161,6 +161,16 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
     }
   };
 
+  useEffect(() => {
+    if (
+      initialDataLoaded &&
+      Object.values(initialColumns).some((col) => col.length > 0)
+    ) {
+      console.log("Actualizando columnas con datos iniciales");
+      setColumns(initialColumns);
+    }
+  }, [initialColumns, initialDataLoaded, setColumns]);
+
   if (loading) {
     return (
       <>
@@ -197,50 +207,63 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
       return;
     }
 
-    const sourceColumn = columns[source.droppableId];
-    const destColumn = columns[destination.droppableId];
+    try {
+      const sourceColumn = columns[source.droppableId];
+      const destColumn = columns[destination.droppableId];
 
-    const draggedTask = sourceColumn.find((task) => task.id === draggableId);
-    if (!draggedTask) return;
+      const draggedTask = sourceColumn.find((task) => task.id === draggableId);
+      if (!draggedTask) {
+        console.error("No se encontró la tarea arrastrada");
+        return;
+      }
 
-    const columnToStatus: Record<string, "pending" | "in_progress" | "review" | "done"> = {
-      backlog: "pending",
-      in_progress: "in_progress",
-      review: "review",
-      done: "done",
-    };
+      const columnToStatus: Record<
+        string,
+        "pending" | "in_progress" | "review" | "done"
+      > = {
+        backlog: "pending",
+        in_progress: "in_progress",
+        review: "review",
+        done: "done",
+      };
 
-    const updatedTask: KanbanTask = {
-      ...draggedTask,
-      status: columnToStatus[destination.droppableId],
-    };
+      const updatedTask: KanbanTask = {
+        ...draggedTask,
+        status: columnToStatus[destination.droppableId],
+      };
 
-    const newSourceColumn = [...sourceColumn];
-    newSourceColumn.splice(source.index, 1);
+      const newSourceColumn = [...sourceColumn];
+      newSourceColumn.splice(source.index, 1);
 
-    if (source.droppableId === destination.droppableId) {
-      newSourceColumn.splice(destination.index, 0, updatedTask);
-      setColumns({
-        ...columns,
-        [source.droppableId]: newSourceColumn,
-      });
-    } else {
-      const newDestColumn = [...destColumn];
-      newDestColumn.splice(destination.index, 0, updatedTask);
-      setColumns({
-        ...columns,
-        [source.droppableId]: newSourceColumn,
-        [destination.droppableId]: newDestColumn,
-      });
+      if (source.droppableId === destination.droppableId) {
+        newSourceColumn.splice(destination.index, 0, updatedTask);
+        setColumns({
+          ...columns,
+          [source.droppableId]: newSourceColumn,
+        });
+      } else {
+        const newDestColumn = [...destColumn];
+        newDestColumn.splice(destination.index, 0, updatedTask);
+        setColumns({
+          ...columns,
+          [source.droppableId]: newSourceColumn,
+          [destination.droppableId]: newDestColumn,
+        });
 
-      updateTaskStatus(draggedTask.id, columnToStatus[destination.droppableId]);
+        updateTaskStatus(
+          draggedTask.id,
+          columnToStatus[destination.droppableId]
+        );
+      }
+
+      updateTask(
+        draggedTask.id,
+        columnToStatus[destination.droppableId],
+        updatedTask
+      );
+    } catch (error) {
+      console.error("Error en onDragEnd:", error);
     }
-
-    updateTask(
-      draggedTask.id,
-      columnToStatus[destination.droppableId],
-      updatedTask
-    );
   };
 
   const updateTaskStatus = async (taskId: string, newStatus: string) => {
@@ -265,21 +288,19 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
     <>
       <SideBar />
 
-      <main className="min-h-screen bg-gray-200 pt-16 md:pt-6 px-4 py-6 md:p-6 md:ml-[16.66667%] text-black">
-          <button
-            onClick={() => router.back()}
-            className="mb-4 px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400 transition-colors"
-          >
-            ← Volver
-          </button>
+      <main className="min-h-screen bg-gray-200 pt-16 md:pt-6 px-4 py-6 md:p-6 md:ml-[16.66667%] text-black relative">
+        <button
+          onClick={() => router.back()}
+          className="mb-4 px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400 transition-colors"
+        >
+          ← Volver
+        </button>
 
-          <h1 className="text-2xl md:text-3xl font-bold mt-2">
-            {project?.name}
-          </h1>
-          <p className="text-gray-600 mt-2 text-sm md:text-base">
-            {project?.description}
-          </p>
-          <div className="flex flex-row gap-4">
+        <h1 className="text-2xl md:text-3xl font-bold mt-2">{project?.name}</h1>
+        <p className="text-gray-600 mt-2 text-sm md:text-base">
+          {project?.description}
+        </p>
+        <div className="flex flex-row gap-4">
           {project?.status && (
             <span
               className={`px-3 py-1 rounded-full text-xs md:text-sm mt-2 inline-block ${
@@ -291,14 +312,12 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
               }`}
             >
               {project.status}
-              
             </span>
-            
           )}
 
           <Link
             href={`/addTask?projectId=${id}`}
-            className="px-3 py-1 md:px-4 md:py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center w-max mt-4 md:mt-0 md:absolute md:right-0 md:top-0 text-sm md:text-base"
+            className="m-4 px-3 py-1 md:px-4 md:py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center w-max md:mt-7 md:mr-7 md:absolute md:right-0 md:top-0 text-sm md:text-base"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -584,6 +603,23 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
 
           <div className="bg-white rounded-lg shadow overflow-hidden h-[400px] md:h-[500px]">
             <Chat projectId={id} />
+          </div>
+        </div>
+
+        <div className="fixed bottom-4 right-4 z-50">
+          <div
+            className={`flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-medium ${
+              connected
+                ? "bg-green-100 text-green-800"
+                : "bg-red-100 text-red-800"
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                connected ? "bg-green-500" : "bg-red-500"
+              }`}
+            ></span>
+            <span>{connected ? "Conectado" : "Desconectado"}</span>
           </div>
         </div>
       </main>

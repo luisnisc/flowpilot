@@ -3,6 +3,7 @@ import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import SideBar from "./SideBar";
+import Link from "next/link";
 import {
   FaEdit,
   FaTrash,
@@ -137,7 +138,7 @@ export default function Tasks() {
 
     try {
       const res = await fetch(`/api/tasks/${editingTask._id}`, {
-        method: "PUT",
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
@@ -317,9 +318,11 @@ export default function Tasks() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
+                        <Link href={`/projects/${task.project}`}>
                         <span className="text-sm text-gray-900">
                           {getProjectName(task.project)}
                         </span>
+                        </Link>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {getStatusBadge(task.status)}

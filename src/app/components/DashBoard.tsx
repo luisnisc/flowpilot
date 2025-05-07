@@ -198,7 +198,7 @@ export default function DashBoard() {
             
             <div className="p-3 bg-gray-50 border-t border-gray-200">
               <Link 
-                href="/tasks/add"
+                href="/addTask"
                 className="block w-full py-2 bg-blue-100 text-blue-700 text-center rounded hover:bg-blue-200 transition-colors"
               >
                 Crear nueva tarea

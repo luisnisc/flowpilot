@@ -56,7 +56,7 @@ export default function SideBar() {
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const userEmail = session?.user?.email;
 
     if (!userEmail) {
@@ -64,27 +64,64 @@ export default function SideBar() {
       return;
     }
 
-    fetch(`/api/users/${encodeURIComponent(userEmail)}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(userSettings),
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Error: ${response.status}`);
+    try {
+      // 1. Guardar los cambios de usuario
+      const response = await fetch(
+        `/api/users/${encodeURIComponent(userEmail)}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(userSettings),
         }
-        return response.json();
-      })
-      .then((data) => {
-        console.log("Configuración guardada:", data);
-        setShowModal(false);
-      })
-      .catch((error) => {
-        console.error("Error al guardar la configuración:", error);
-        alert("No se pudo guardar la configuración: " + error.message);
-      });
+      );
+
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+
+      const updatedUser = await response.json();
+
+      // 2. Propagar cambios a proyectos asociados
+      if (
+        userEmail !== userSettings.email ||
+        session?.user?.name !== userSettings.name
+      ) {
+        // Si cambió el email o nombre, sincronizar con proyectos
+        const syncResponse = await fetch("/api/users/sync-data", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            oldEmail: userEmail,
+            newEmail: userSettings.email,
+            oldName: session?.user?.name,
+            newName: userSettings.name,
+          }),
+        });
+
+        if (!syncResponse.ok) {
+          console.warn(
+            "La sincronización de datos en proyectos no fue completamente exitosa"
+          );
+        } else {
+          const syncResult = await syncResponse.json();
+          console.log("Sincronización completada:", syncResult);
+        }
+      }
+
+      // 3. Actualizar la sesión para reflejar los cambios inmediatamente
+      // Nota: Esto requiere un reload de la página para ver los cambios en la sesión
+      alert(
+        "Configuración guardada correctamente. La página se recargará para aplicar los cambios."
+      );
+      window.location.reload();
+    } catch (error) {
+      console.error("Error al guardar la configuración:", error);
+      alert("No se pudo guardar la configuración: " + (error as Error).message);
+    }
   };
 
   const isActive = (path: string): string => {
@@ -223,7 +260,7 @@ export default function SideBar() {
 
       {showModal && (
         <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 "
           aria-labelledby="modal-title"
           role="dialog"
           aria-modal="true"
@@ -248,7 +285,7 @@ export default function SideBar() {
                   type="text"
                   value={userSettings.name}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border rounded input text-black"
+                  className="w-full px-3 py-2 border rounded input text-white"
                   aria-describedby="name-description"
                 />
               </div>
@@ -262,25 +299,11 @@ export default function SideBar() {
                   type="email"
                   value={userSettings.email}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border rounded input text-black"
+                  className="w-full px-3 py-2 border rounded input text-white"
                   aria-describedby="email-description"
                 />
               </div>
-              <div className="mb-4">
-                <label htmlFor="role" className="block mb-2 text-gray-700">
-                  Rol
-                </label>
-                <select
-                  id="role"
-                  name="role"
-                  value={userSettings.role}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border rounded input select text-black"
-                >
-                  <option value="admin">Administrador</option>
-                  <option value="user">Usuario</option>
-                </select>
-              </div>
+
               <div className="flex justify-end space-x-2">
                 <button
                   type="button"

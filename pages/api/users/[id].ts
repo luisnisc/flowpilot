@@ -1,108 +1,100 @@
-import { NextApiRequest, NextApiResponse } from "next";
+import type { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth/next";
-import { authOptions as nextAuthOptions } from "../auth/[...nextauth]";
-import { Session } from "next-auth"; 
-import { AuthOptions } from "next-auth";
+import authOptions from "../auth/[...nextauth]";
 import clientPromise from "../../../lib/mongodb";
-
-const authOptions = nextAuthOptions as AuthOptions;
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  try {
-    const session = (await getServerSession( req, res, authOptions )) as Session | null;
+  const { id } = req.query; // Este debería ser el email del usuario que se está modificando
+  const email = id as string; // Convertir el parámetro a string
 
-    if (!session || !session.user) {
-      return res.status(401).json({ error: "No autorizado" });
-    }
-    const { id } = req.query;
-    if (!id || Array.isArray(id)) {
-      return res
-        .status(400)
-        .json({ error: "Identificador de usuario inválido" });
-    }
-    const email = decodeURIComponent(id);
+  // Verificar autenticación
+  const session = await getServerSession(req, res, authOptions);
+  if (!session || !session.user) {
+    return res.status(401).json({ error: "No autenticado" });
+  }
 
-    const client = await clientPromise;
-    const db = client.db("app");
-    const usersCollection = db.collection("users");
+  // Solo permitir al propio usuario o admin
+  if (session.user.email !== email && session.user.role !== "admin") {
+    return res.status(403).json({ error: "No autorizado" });
+  }
 
-    if (req.method === "GET") {
-      const user = await usersCollection.findOne(
-        { email },
-        { projection: { password: 0 } } 
-      );
+  // Conectar a la base de datos
+  const client = await clientPromise;
+  const db = client.db("app");
 
-      if (!user) {
-        return res.status(404).json({ error: "Usuario no encontrado" });
+  switch (req.method) {
+    case "GET":
+      try {
+        const user = await db.collection("users").findOne({ email });
+        if (!user) {
+          return res.status(404).json({ error: "Usuario no encontrado" });
+        }
+        return res.status(200).json(user);
+      } catch (error) {
+        console.error("Error obteniendo usuario:", error);
+        return res.status(500).json({ error: "Error en el servidor" });
       }
 
-      return res.status(200).json(user);
-    }
+    case "PATCH":
+      try {
+        const { name, email: newEmail, role } = req.body;
 
-    else if (req.method === "PATCH") {
-      const { name, role } = req.body;
+        // Validar si el nuevo email ya existe SOLO SI se está cambiando el email
+        if (newEmail && newEmail !== email) {
+          // Solo verificar si es un email diferente al actual
+          console.log(`Verificando si el nuevo email ${newEmail} ya existe...`);
+          const existingUser = await db
+            .collection("users")
+            .findOne({ email: newEmail });
+          if (existingUser) {
+            console.log("Email ya está en uso");
+            return res.status(409).json({ error: "El email ya está en uso" });
+          }
+        }
 
-      if (!name && !role) {
-        return res.status(400).json({
-          error: "Se requiere al menos un campo para actualizar",
+        // Preparar objeto de actualización
+        const updateData: any = {};
+        if (name) updateData.name = name;
+        if (newEmail) updateData.email = newEmail;
+        if (role && session.user.role === "admin") updateData.role = role;
+
+        console.log("Datos a actualizar:", updateData);
+
+        // Si no hay datos para actualizar, devolver el usuario actual
+        if (Object.keys(updateData).length === 0) {
+          const currentUser = await db.collection("users").findOne({ email });
+          return res.status(200).json(currentUser);
+        }
+
+        // Actualizar usuario
+        const result = await db
+          .collection("users")
+          .updateOne({ email }, { $set: updateData });
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({ error: "Usuario no encontrado" });
+        }
+
+        // Buscar el usuario actualizado con el email correcto (que puede ser el nuevo o el mismo)
+        const updatedUser = await db
+          .collection("users")
+          .findOne({ email: newEmail || email });
+
+        return res.status(200).json(updatedUser);
+      } catch (error) {
+        console.error("Error actualizando usuario:", error);
+        return res.status(500).json({
+          error: "Error en el servidor",
+          details: error instanceof Error ? error.message : "Error desconocido",
         });
       }
+      break;
 
-      const updateData: Record<string, any> = {};
-      if (name) updateData.name = name;
-      if (role && session.user.role === "admin") updateData.role = role;
-
-      const result = await usersCollection.updateOne(
-        { email },
-        { $set: updateData }
-      );
-
-      if (result.matchedCount === 0) {
-        return res.status(404).json({ error: "Usuario no encontrado" });
-      }
-
-      const updatedUser = await usersCollection.findOne(
-        { email },
-        { projection: { password: 0 } }
-      );
-
-      return res.status(200).json({
-        success: true,
-        message: "Usuario actualizado correctamente",
-        user: updatedUser,
-      });
-    }
-
-    else if (req.method === "DELETE") {
-      if (email === session.user.email) {
-        return res.status(400).json({
-          error: "No puedes eliminar tu propia cuenta",
-        });
-      }
-
-      const result = await usersCollection.deleteOne({ email });
-
-      if (result.deletedCount === 0) {
-        return res.status(404).json({ error: "Usuario no encontrado" });
-      }
-
-      return res.status(200).json({
-        success: true,
-        message: "Usuario eliminado correctamente",
-      });
-    }
-
-    return res.status(405).json({
-      error: `Método ${req.method} no permitido`,
-    });
-  } catch (error) {
-    console.error("Error en API de usuarios:", error);
-    return res.status(500).json({
-      error: "Error interno del servidor",
-      details: error instanceof Error ? error.message : "Error desconocido",
-    });
+    default:
+      res.setHeader("Allow", ["GET", "PATCH"]);
+      res.status(405).end(`Método ${req.method} no permitido`);
   }
 }
