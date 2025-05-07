@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
+import { unstable_ViewTransition as ViewTransition } from 'react'
 import SideBar from "./SideBar";
 import Link from "next/link";
 

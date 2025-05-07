@@ -142,7 +142,7 @@ export default function DashBoard() {
             Cerrar sesión
           </button>
         </div>
-        <div className="flex items-center justify-center h-[85vh]">
+        <div className="flex items-center justify-center h-[85vh] mt-15 md:mt-0">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <div className="p-4 bg-blue-600 text-white flex justify-between items-center">

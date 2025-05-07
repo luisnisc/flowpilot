@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
+import UserStatsWidget from "./UserStatsWidget";
 import {
   FiMenu,
   FiX,
@@ -125,7 +126,7 @@ export default function SideBar() {
   };
 
   const isActive = (path: string): string => {
-    return pathname === path ? "bg-gray-700" : "";
+    return pathname?.includes(path) ? "bg-gray-700" : "";
   };
 
   const handleLogout = () => {
@@ -171,6 +172,8 @@ export default function SideBar() {
         <div className="text-center mb-2">
           {session?.user?.name || "Usuario"}
         </div>
+      
+
         <button
           title="Configuración de usuario"
           className="hover:cursor-pointer"
@@ -180,6 +183,16 @@ export default function SideBar() {
           <FiSettings size={20} className="text-white" />
         </button>
       </div>
+      {session?.user && (
+          <div className="w-full px-3 mt-2 mb-4">
+            <div className="bg-gray-700 rounded-md p-2">
+              <div className="text-xs text-gray-300 mb-1">
+                Tareas completadas
+              </div>
+              <UserStatsWidget email={session.user.email || ""} />
+            </div>
+          </div>
+        )}
 
       <div className="h-0.25 w-full bg-white my-4 md:mb-6"></div>
 
