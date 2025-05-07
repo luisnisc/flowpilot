@@ -118,6 +118,7 @@ export default function Chat({ projectId }: { projectId: string }) {
           disabled={!connected}
         />
         <button
+          title="Enviar mensaje"
           type="submit"
           className={`px-4 py-2 rounded-r-md ${
             connected

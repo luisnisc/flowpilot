@@ -339,7 +339,7 @@ export default function useProjectSync(
   };
 
   // Modificar onDragEnd para ser más robusto
-  const onDragEnd = (result: DropResult) => {
+  const onDragEnd = (result:any) => {
     const { destination, source, draggableId } = result;
 
     if (
@@ -370,7 +370,7 @@ export default function useProjectSync(
         done: "done",
       };
 
-      const updatedTask: KanbanTask = {
+      const updatedTask: Task = {
         ...draggedTask,
         status: columnToStatus[destination.droppableId],
       };
@@ -386,7 +386,7 @@ export default function useProjectSync(
       );
 
       // También actualizar en la base de datos como respaldo
-      updateTaskStatus(draggedTask.id, columnToStatus[destination.droppableId]);
+      updateTaskViaAPI(draggedTask.id, columnToStatus[destination.droppableId]);
     } catch (error) {
       console.error("Error en onDragEnd:", error);
     }

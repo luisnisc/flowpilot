@@ -19,7 +19,7 @@ const nextConfig = {
     ];
   },
   
-  webpack: (config) => {
+  webpack: (config:any) => {
     // Evitar problemas con bufferutil y utf-8-validate
     if (!config.externals) config.externals = [];
     config.externals.push({
