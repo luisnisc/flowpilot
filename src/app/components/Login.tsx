@@ -1,16 +1,25 @@
 "use client";
 import { useState } from "react";
 import { signIn } from "next-auth/react";
+
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 
 export default function Login() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  if(session) {
+    router.push("/dashboard");
+  }
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  
 
   const handleCredentials = async (e: React.FormEvent) => {
     e.preventDefault();

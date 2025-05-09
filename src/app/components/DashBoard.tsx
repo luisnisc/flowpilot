@@ -35,8 +35,12 @@ export default function DashBoard() {
   const [error, setError] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
+    if (session?.user?.role === "admin") {
+      setIsAdmin(true);
+    }
     if (status === "unauthenticated") {
       router.push("/login");
     } else if (status === "authenticated") {
@@ -70,16 +74,21 @@ export default function DashBoard() {
           setLoading(false);
         });
     }
-  }, [status, router]);
+  }, [status, router, session]);
 
-  const userTasks = tasks.filter(
+  const userTasks = isAdmin ? tasks : tasks.filter(
     (task) => 
       task.assignedTo === session?.user?.email && 
       task.status !== "done"
   );
 
-  const activeProjects = projects.filter(
+  const activeProjects = isAdmin ? projects.filter(
     (project) => project.status !== "completed"
+  ) : projects.filter(
+    (project) =>
+      project.status !== "completed" &&
+      (project.users?.includes(session?.user?.email || "") || 
+       project.users?.includes(session?.user?.name || ""))
   );
 
   const getPriorityColor = (priority: string) => {
@@ -228,7 +237,6 @@ export default function DashBoard() {
               ) : (
                 <ul className="space-y-3">
                   {activeProjects.map((project) => (
-                    project.users?.includes(session?.user?.email || session?.user?.name || "") && (
                     <li 
                       key={project._id} 
                       className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow"
@@ -245,7 +253,7 @@ export default function DashBoard() {
                         </div>
                       </Link>
                     </li>
-                    )
+                    
                   ))}
                 </ul>
               )}

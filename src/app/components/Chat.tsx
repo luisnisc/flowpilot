@@ -99,7 +99,7 @@ export default function Chat({ projectId }: { projectId: string }) {
             return (
               <div
                 key={msg._id || `temp-${index}`}
-                className={`flex items-start ${
+                className={`flex items-start break-words ${
                   isCurrentUser ? "justify-end" : ""
                 }`}
               >
