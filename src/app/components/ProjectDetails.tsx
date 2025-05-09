@@ -29,6 +29,7 @@ interface Task {
   status: "pending" | "in_progress" | "review" | "done";
   priority: "low" | "medium" | "high";
   assignedTo?: string;
+  assignedToName?: string;
 }
 
 interface KanbanTask {
@@ -673,48 +674,58 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
     }
   };
 
-  const onDragEnd = async (result: DropResult) => {
+  const onDragEnd = (result: DropResult) => {
     const { source, destination, draggableId } = result;
 
-    // Si no hay destino, no hacemos nada
-    if (!destination) return;
-
-    // Si la tarea no cambió de columna, no hacemos nada
-    if (source.droppableId === destination.droppableId) return;
+    // Si no hay destino o no cambió de columna, no hacemos nada
+    if (
+      !destination ||
+      (destination.droppableId === source.droppableId &&
+        destination.index === source.index)
+    ) {
+      return;
+    }
 
     try {
-      // Llamar a la API para actualizar el estado de la tarea
-      const response = await fetch("/api/tasks/update", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          taskId: draggableId,
-          newStatus: destination.droppableId, // El nuevo estado de la tarea
-        }),
-      });
+      // Mapeo de columnas a estados de tarea
+      const columnToStatus: Record<
+        string,
+        "pending" | "in_progress" | "review" | "done"
+      > = {
+        backlog: "pending",
+        in_progress: "in_progress",
+        review: "review",
+        done: "done",
+      };
 
-      if (!response.ok) {
-        console.error("Error al actualizar la tarea:", await response.text());
+      // Encontrar la tarea que se movió
+      const sourceColumn = columns[source.droppableId as keyof typeof columns];
+      const taskToMove = sourceColumn.find((task) => task.id === draggableId);
+
+      if (!taskToMove) {
+        console.error("No se encontró la tarea a mover");
         return;
       }
 
-      // Actualizar el estado local (opcional, dependiendo de cómo manejes el estado)
-      const updatedColumns = { ...columns };
-      const [movedTask] = updatedColumns[source.droppableId].splice(
-        source.index,
-        1
-      );
-      updatedColumns[destination.droppableId].splice(
-        destination.index,
-        0,
-        movedTask
-      );
+      // Obtener el nuevo estado de forma segura
+      const newStatus = columnToStatus[destination.droppableId];
+      if (!newStatus) {
+        console.error(
+          `Columna de destino no válida: ${destination.droppableId}`
+        );
+        return;
+      }
 
-      setColumns(updatedColumns);
+      console.log(`Moviendo tarea ${taskToMove.id} a estado ${newStatus}`);
+
+      // Llamar a updateTask con los parámetros correctos y en el orden correcto
+      updateTask(draggableId, newStatus, taskToMove);
+
+      // También actualizar en la base de datos vía API como respaldo
+      updateTaskStatus(draggableId, newStatus);
     } catch (error) {
-      console.error("Error al manejar el evento onDragEnd:", error);
+      console.error("Error en onDragEnd:", error);
+      showNotification("error", "Error", "No se pudo actualizar la tarea");
     }
   };
 
@@ -734,12 +745,6 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
           "error",
           "Error",
           "No se pudo actualizar el estado de la tarea"
-        );
-      } else {
-        showNotification(
-          "success",
-          "¡Estado actualizado!",
-          "El estado de la tarea se actualizó correctamente"
         );
       }
     } catch (error) {
@@ -899,6 +904,7 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                   Añadir usuarios al proyecto
                 </h3>
                 <button
+                  title="Cerrar"
                   onClick={() => setShowAddUserModal(false)}
                   className="text-gray-500 hover:text-gray-700"
                 >

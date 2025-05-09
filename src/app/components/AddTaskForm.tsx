@@ -34,8 +34,8 @@ export default function AddTaskForm() {
     description: "",
     status: "pending",
     priority: "medium",
-    project: projectId || "", 
-    assignedTo: "",
+    project: projectId || "",
+    assignedTo: session?.user?.email || "",
   });
 
   useEffect(() => {
@@ -78,7 +78,7 @@ export default function AddTaskForm() {
       console.error("Error fetching users:", err);
       setError("No se pudieron cargar los usuarios");
     }
-  }
+  };
 
   const fetchProjects = async () => {
     try {
@@ -117,6 +117,14 @@ export default function AddTaskForm() {
     if (!formData.title || !formData.description || !formData.project) {
       setError("Por favor completa todos los campos requeridos");
       return;
+    }
+
+    // Asegurarse de que assignedTo tenga un valor
+    if (!formData.assignedTo) {
+      setFormData((prev) => ({
+        ...prev,
+        assignedTo: session?.user?.email || "",
+      }));
     }
 
     setSubmitting(true);
@@ -316,19 +324,31 @@ export default function AddTaskForm() {
                     id="assignedTo"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     value={formData.assignedTo}
-                    >
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        assignedTo: e.target.value,
+                      }))
+                    }
+                    
+                  >
                     <option value={session?.user?.email || ""}>
-                      {session?.user?.email || session?.user?.name}
+                      {session?.user?.name ||
+                        session?.user?.email ||
+                        "Usuario actual"}
                     </option>
                     {session?.user?.role === "admin" &&
-                      users.map((user) => (
-                        session?.user?.email !== user.email && (
-                        <option key={user.email} value={user.email}>
-                          {user.email || user.name}
-                        </option>
-                        )
-                      ))}
-                    </select>
+                      users.map((user: any) => {
+                        if (user.email !== session?.user?.email) {
+                          return (
+                            <option key={user.email} value={user.email}>
+                              {user.name || user.email}
+                            </option>
+                          );
+                        }
+                        return null;
+                      })}
+                  </select>
                 </div>
               </div>
 
