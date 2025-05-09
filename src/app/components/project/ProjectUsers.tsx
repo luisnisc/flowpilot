@@ -62,7 +62,7 @@ export default function ProjectUsers({
         setAvailableUsers(data);
       }
       )
-  })
+  }, [projectId]);
 
   const fetchAvailableUsers = async () => {
     setIsLoading(true);
