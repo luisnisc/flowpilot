@@ -15,6 +15,8 @@ import { FiMenu, FiX } from "react-icons/fi";
 import useProjectSync from "@/hooks/useProjectSync";
 import dynamic from "next/dynamic";
 import { FiPieChart } from "react-icons/fi"; // Añadir a tus importaciones de iconos
+import Swal from "sweetalert2";
+import usePresence from "@/hooks/usePresence";
 
 // Importación dinámica para evitar problemas de SSR
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
@@ -39,12 +41,22 @@ interface KanbanTask {
   assignedToName?: string;
 }
 
+// Interfaces nuevas o actualizadas
+interface User {
+  _id?: string;
+  id?: string;
+  email: string;
+  name?: string;
+  role?: string;
+  image?: string;
+}
+
 interface Project {
   _id: string;
   name: string;
   description: string;
   tasks: string[];
-  users?: string[];
+  users?: (string | User)[];
   status?: string;
 }
 
@@ -61,6 +73,47 @@ const emptyColumns: ColumnData = {
   in_progress: [],
   review: [],
   done: [],
+};
+
+// Función auxiliar para evitar errores con split()
+const getUserDisplayName = (user: string | User): string => {
+  if (typeof user === "string") {
+    // Si es un string (email), extraer la parte antes del @ como nombre de usuario
+    return user.split("@")[0];
+  } else if (user && typeof user === "object") {
+    // Si es un objeto, usar primero name, o si no está disponible, extraer de email
+    return user.name || (user.email ? user.email.split("@")[0] : "Usuario");
+  }
+  return "Usuario";
+};
+
+// Función auxiliar para obtener el email del usuario independientemente del formato
+const getUserEmail = (user: string | User): string => {
+  if (typeof user === "string") {
+    return user;
+  } else if (user && typeof user === "object") {
+    return user.email || "";
+  }
+  return "";
+};
+
+// Función para mostrar notificaciones con SweetAlert2
+const showNotification = (
+  type: "success" | "error" | "warning" | "info",
+  title: string,
+  message: string
+) => {
+  Swal.fire({
+    icon: type,
+    title: title,
+    text: message,
+    confirmButtonColor: "#3B82F6",
+    timer: type === "success" ? 3000 : undefined,
+    timerProgressBar: type === "success",
+    toast: type === "success",
+    position: type === "success" ? "top-end" : "center",
+    showConfirmButton: type !== "success",
+  });
 };
 
 interface ProjectDetailsProps {
@@ -82,6 +135,15 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
     emptyColumns
   );
 
+  // Añade este hook para rastrear usuarios en línea
+  const userEmail = session?.user?.email;
+  const userName = session?.user?.name;
+  const { onlineUsers, isConnected: presenceConnected } = usePresence(
+    id,
+    userEmail,
+    userName
+  );
+
   // Añade el estado para las pestañas si no lo tienes ya
   const [activeTab, setActiveTab] = useState<"kanban" | "chat" | "stats">(
     "kanban"
@@ -100,9 +162,16 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
   >([]);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
 
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [availableUsers, setAvailableUsers] = useState<
+    Array<{ email: string; name: string }>
+  >([]);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+
   const loadStatsData = async () => {
     if (activeTab !== "stats" || !id) return;
-  
+
     setIsLoadingStats(true);
     try {
       // Obtener estadísticas de tareas
@@ -123,14 +192,19 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
           done: 1,
         });
       }
-  
+
       // Obtener datos de timeline
-      const timelineResponse = await fetch(`/api/stats/timeline?projectId=${id}`);
+      const timelineResponse = await fetch(
+        `/api/stats/timeline?projectId=${id}`
+      );
       if (timelineResponse.ok) {
         const data = await timelineResponse.json();
         setTaskTimeline(data.timeline);
       } else {
-        console.error("Error cargando timeline:", await timelineResponse.text());
+        console.error(
+          "Error cargando timeline:",
+          await timelineResponse.text()
+        );
         // Establecer datos predeterminados en caso de error
         setTaskTimeline(
           Array.from({ length: 14 }).map((_, i) => ({
@@ -160,13 +234,11 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
       setIsLoadingStats(false);
     }
   };
-  
 
   // Efecto para cargar estadísticas cuando se cambia a esa pestaña
   useEffect(() => {
     loadStatsData();
   }, [activeTab, id]);
-  
 
   // Opciones para el gráfico circular de estado de tareas
   const taskStatusOptions = {
@@ -353,6 +425,8 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
     if (status === "unauthenticated") {
       router.push("/login");
     } else if (status === "authenticated") {
+      // Verificar si el usuario es administrador
+      setIsAdmin(session?.user?.role === "admin");
       fetchProjects();
     }
   }, [status, router, id]);
@@ -413,9 +487,6 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
           priority: task.priority,
           status: task.status,
           assignedTo: task.assignedTo,
-          assignedToName: task.assignedTo
-            ? task.assignedTo.split("@")[0]
-            : undefined,
         };
         if (task.status === "pending") {
           newColumns.backlog.push(kanbanTask);
@@ -449,6 +520,86 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
     }
   }, [initialColumns, initialDataLoaded, setColumns]);
 
+  const fetchAvailableUsers = async () => {
+    try {
+      const response = await fetch("/api/users", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch users");
+      }
+
+      const allUsers = await response.json();
+
+      // Filtrar usuarios que ya están en el proyecto
+      const projectUsers = project?.users || [];
+      const filteredUsers = allUsers.filter(
+        (user: any) => !projectUsers.includes(user.email)
+      );
+
+      setAvailableUsers(filteredUsers);
+    } catch (error) {
+      console.error("Error fetching available users:", error);
+    }
+  };
+
+  const handleAddUsers = async () => {
+    try {
+      if (!selectedUsers.length) return;
+
+      const response = await fetch(`/api/projects/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ users: selectedUsers }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to add users to project");
+      }
+
+      setProject((prev) => {
+        if (!prev) return null;
+
+        return {
+          ...prev,
+          users: [...(prev.users || []), ...selectedUsers],
+        };
+      });
+
+      // Cerrar modal y limpiar selección
+      setShowAddUserModal(false);
+      setSelectedUsers([]);
+
+      // Reemplazar alert por SweetAlert2
+      Swal.fire({
+        icon: "success",
+        title: "¡Listo!",
+        text: "Usuarios añadidos correctamente",
+        confirmButtonColor: "#3B82F6",
+        timer: 3000,
+        timerProgressBar: true,
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      console.error("Error adding users to project:", error);
+      // Reemplazar alert de error por SweetAlert2
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudieron añadir los usuarios al proyecto",
+        confirmButtonColor: "#3B82F6",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <>
@@ -473,6 +624,54 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
   if (!project) {
     return <div>No se encontró el proyecto</div>;
   }
+
+  const handleRemoveUser = async (email: string) => {
+    try {
+      const response = await fetch(`/api/projects/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ removeUser: email }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to remove user from project");
+      }
+
+      // El resto del código puede permanecer igual
+      setProject((prev) => {
+        if (!prev) return null;
+
+        return {
+          ...prev,
+          users: prev.users?.filter((user) => getUserEmail(user) !== email),
+        };
+      });
+
+      // Reemplazar alert por SweetAlert2
+      Swal.fire({
+        icon: "success",
+        title: "¡Listo!",
+        text: "Usuario eliminado correctamente",
+        confirmButtonColor: "#3B82F6",
+        timer: 3000,
+        timerProgressBar: true,
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      console.error("Error removing user from project:", error);
+      // Reemplazar alert de error por SweetAlert2
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudo eliminar el usuario del proyecto",
+        confirmButtonColor: "#3B82F6",
+      });
+    }
+  };
 
   const onDragEnd = async (result: DropResult) => {
     const { source, destination, draggableId } = result;
@@ -531,72 +730,267 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
 
       if (!response.ok) {
         console.error("Error al actualizar el estado de la tarea");
+        showNotification(
+          "error",
+          "Error",
+          "No se pudo actualizar el estado de la tarea"
+        );
+      } else {
+        showNotification(
+          "success",
+          "¡Estado actualizado!",
+          "El estado de la tarea se actualizó correctamente"
+        );
       }
     } catch (error) {
       console.error("Error al actualizar el estado de la tarea:", error);
+      showNotification(
+        "error",
+        "Error",
+        "Hubo un problema al conectar con el servidor"
+      );
     }
   };
-  
+
   // Función helper para renderizar la tarjeta de tarea (evitar duplicación de código)
-  const renderTaskCard = (task: KanbanTask, provided: any, snapshot: any) => (
-    <div
-      ref={provided.innerRef}
-      {...provided.draggableProps}
-      {...provided.dragHandleProps}
-      className={`bg-white p-3 md:p-4 rounded shadow mb-2 md:mb-3 ${
-        snapshot.isDragging ? "shadow-lg" : ""
-      }`}
-    >
-      <div className="flex justify-between items-center mb-1 md:mb-2">
-        <div className="flex items-center">
-          {/* Avatar del usuario asignado */}
-          {task.assignedTo && (
-            <div className="flex-shrink-0 mr-2">
-              <img
-                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
-                  task.assignedToName || task.assignedTo
-                )}&background=random&color=fff&size=32`}
-                alt={`${task.assignedToName || task.assignedTo}`}
-                title={`Asignado a: ${task.assignedToName || task.assignedTo}`}
-                className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
-              />
-            </div>
-          )}
-          <h3 className="font-semibold text-sm md:text-base text-clip max-w-[150px] ">
-            {task.title}
-          </h3>
+  const renderTaskCard = (task: KanbanTask, provided: any, snapshot: any) => {
+    const isAdmin = session?.user?.role === "admin";
+    const isAssignedToUser = task.assignedTo === session?.user?.email;
+    const canDrag = isAdmin || isAssignedToUser;
+
+    return (
+      <div
+        ref={provided.innerRef}
+        {...provided.draggableProps}
+        {...provided.dragHandleProps}
+        className={`bg-white p-3 md:p-4 rounded shadow mb-2 md:mb-3 ${
+          snapshot.isDragging ? "shadow-lg" : ""
+        } ${!canDrag ? "opacity-80 cursor-not-allowed" : ""}`}
+      >
+        <div className="flex justify-between items-center mb-1 md:mb-2">
+          <div className="flex items-center">
+            {/* Avatar del usuario asignado */}
+            {task.assignedTo && (
+              <div className="flex-shrink-0 mr-2">
+                <img
+                  src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    task.assignedToName || task.assignedTo
+                  )}&background=random&color=fff&size=32`}
+                  alt={`${task.assignedToName || task.assignedTo}`}
+                  title={`Asignado a: ${
+                    task.assignedToName || task.assignedTo
+                  }`}
+                  className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
+                />
+              </div>
+            )}
+            <h3 className="font-semibold text-sm md:text-base text-clip max-w-[150px] ">
+              {task.title}
+            </h3>
+          </div>
+          <span
+            className={`px-2 py-0.5 text-xs rounded-full ${
+              task.priority === "high"
+                ? "bg-red-100 text-red-800"
+                : task.priority === "medium"
+                ? "bg-yellow-100 text-yellow-800"
+                : "bg-green-100 text-green-800"
+            }`}
+          >
+            {task.priority}
+          </span>
         </div>
-        <span
-          className={`px-2 py-0.5 text-xs rounded-full ${
-            task.priority === "high"
-              ? "bg-red-100 text-red-800"
-              : task.priority === "medium"
-              ? "bg-yellow-100 text-yellow-800"
-              : "bg-green-100 text-green-800"
-          }`}
-        >
-          {task.priority}
-        </span>
+        <p className="text-xs md:text-sm text-gray-600 line-clamp-2">
+          {task.description}
+        </p>
+
+        {/* Indicador visual cuando no se puede arrastrar */}
+        {!canDrag && (
+          <div className="mt-2 text-xs text-gray-500 flex items-center">
+            <svg
+              className="w-3 h-3 mr-1"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              />
+            </svg>
+            Solo el propietario puede mover esta tarea
+          </div>
+        )}
       </div>
-      <p className="text-xs md:text-sm text-gray-600 line-clamp-2">
-        {task.description}
-      </p>
-    </div>
-  );
+    );
+  };
 
   return (
     <>
       <SideBar />
       <main className="min-h-screen bg-gray-200 pt-16 md:pt-6 px-4 py-6 md:p-6 md:ml-[16.66667%] text-black">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
           <div>
             <h1 className="text-2xl font-bold">
               {project?.name || "Cargando..."}
             </h1>
-            <p className="text-gray-600">{project?.description || ""}</p>
+            <p className="text-gray-600 mb-4 md:mb-0">
+              {project?.description || ""}
+            </p>
           </div>
-          {/* Tus botones de acciones aquí */}
+
+          {/* Botones de acción */}
+          <div className="flex flex-wrap gap-2">
+            {/* Botón para añadir tarea (todos los usuarios) */}
+            <Link href={`/addTask?projectId=${id}`}>
+              <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center text-sm">
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                  ></path>
+                </svg>
+                Añadir tarea
+              </button>
+            </Link>
+
+            {/* Botones solo para administradores */}
+            {isAdmin && (
+              <>
+                {/* Botón para editar proyecto */}
+                <Link href={`/projects/edit/${id}`}>
+                  <button className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg flex items-center text-sm">
+                    <svg
+                      className="w-4 h-4 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                      ></path>
+                    </svg>
+                    Editar proyecto
+                  </button>
+                </Link>
+              </>
+            )}
+          </div>
         </div>
+
+        {/* Modal para añadir usuarios */}
+        {showAddUserModal && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">
+                  Añadir usuarios al proyecto
+                </h3>
+                <button
+                  onClick={() => setShowAddUserModal(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    ></path>
+                  </svg>
+                </button>
+              </div>
+
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">
+                  Selecciona los usuarios que quieres añadir a este proyecto
+                </p>
+
+                {availableUsers.length > 0 ? (
+                  <div className="max-h-60 overflow-y-auto border rounded">
+                    {availableUsers.map((user) => (
+                      <div
+                        key={user.email}
+                        className="flex items-center p-2 border-b last:border-b-0 hover:bg-gray-50"
+                      >
+                        <input
+                          type="checkbox"
+                          id={`user-${user.email}`}
+                          checked={selectedUsers.includes(user.email)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedUsers((prev) => [...prev, user.email]);
+                            } else {
+                              setSelectedUsers((prev) =>
+                                prev.filter((email) => email !== user.email)
+                              );
+                            }
+                          }}
+                          className="mr-2"
+                        />
+                        <label
+                          htmlFor={`user-${user.email}`}
+                          className="flex items-center cursor-pointer flex-1"
+                        >
+                          <img
+                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                              user.name || user.email
+                            )}&size=32&background=random`}
+                            alt={user.name || user.email}
+                            className="w-8 h-8 rounded-full mr-2"
+                          />
+                          <div>
+                            <div>{user.name || "Usuario"}</div>
+                            <div className="text-xs text-gray-500">
+                              {user.email}
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-center py-4">
+                    No hay usuarios disponibles para añadir
+                  </p>
+                )}
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setShowAddUserModal(false)}
+                  className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded mr-2"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleAddUsers}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+                  disabled={selectedUsers.length === 0}
+                >
+                  Añadir seleccionados
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Pestañas de navegación */}
         <div className="border-b border-gray-300 mb-6">
@@ -658,121 +1052,652 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
 
         {/* Contenido de la pestaña seleccionada */}
         {activeTab === "kanban" && (
-          <DragDropContext onDragEnd={onDragEnd}>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-gray-100 rounded-lg shadow p-3 md:p-4">
-                <h2 className="font-bold text-base md:text-lg mb-3 md:mb-4 text-gray-700">
-                  Por hacer
+          <div>
+            <DragDropContext onDragEnd={onDragEnd}>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-gray-100 rounded-lg shadow p-3 md:p-4">
+                  <h2 className="font-bold text-base md:text-lg mb-3 md:mb-4 text-gray-700">
+                    Por hacer
+                  </h2>
+                  <Droppable droppableId="backlog">
+                    {(provided) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className="min-h-[20vh] md:min-h-[35vh]"
+                      >
+                        {columns.backlog.map((task, index) => {
+                          const isAdmin = session?.user?.role === "admin";
+                          const isAssignedToUser =
+                            task.assignedTo === session?.user?.email;
+                          const canDrag = isAdmin || isAssignedToUser;
+
+                          return (
+                            <Draggable
+                              key={task.id}
+                              draggableId={task.id}
+                              index={index}
+                              isDragDisabled={!canDrag} // Deshabilita arrastre si no es admin ni asignado
+                            >
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  className={`bg-white p-3 md:p-4 rounded shadow mb-2 md:mb-3 ${
+                                    snapshot.isDragging ? "shadow-lg" : ""
+                                  } ${
+                                    !canDrag
+                                      ? "opacity-80 cursor-not-allowed"
+                                      : ""
+                                  }`}
+                                >
+                                  {/* Contenido existente de la tarjeta */}
+                                  <div className="flex justify-between items-center mb-1 md:mb-2">
+                                    <div className="flex items-center">
+                                      {/* Avatar del usuario asignado */}
+                                      {task.assignedTo && (
+                                        <div className="flex-shrink-0 mr-2">
+                                          <img
+                                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                              task.assignedToName ||
+                                                task.assignedTo
+                                            )}&background=random&color=fff&size=32`}
+                                            alt={`${
+                                              task.assignedToName ||
+                                              task.assignedTo
+                                            }`}
+                                            title={`Asignado a: ${
+                                              task.assignedToName ||
+                                              task.assignedTo
+                                            }`}
+                                            className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
+                                          />
+                                        </div>
+                                      )}
+                                      <h3 className="font-semibold text-sm md:text-base text-clip max-w-[150px]">
+                                        {task.title}
+                                      </h3>
+                                    </div>
+                                    <span
+                                      className={`px-2 py-0.5 text-xs rounded-full ${
+                                        task.priority === "high"
+                                          ? "bg-red-100 text-red-800"
+                                          : task.priority === "medium"
+                                          ? "bg-yellow-100 text-yellow-800"
+                                          : "bg-green-100 text-green-800"
+                                      }`}
+                                    >
+                                      {task.priority}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs md:text-sm text-gray-600 line-clamp-2">
+                                    {task.description}
+                                  </p>
+
+                                  {/* Indicador visual cuando no se puede arrastrar */}
+                                  {!canDrag && (
+                                    <div className="mt-2 text-xs text-gray-500 flex items-center">
+                                      <svg
+                                        className="w-3 h-3 mr-1"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth="2"
+                                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                                        />
+                                      </svg>
+                                      Solo el propietario puede mover esta tarea
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </Draggable>
+                          );
+                        })}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </div>
+
+                <div className="bg-blue-50 rounded-lg shadow p-3 md:p-4">
+                  <h2 className="font-bold text-base md:text-lg mb-3 md:mb-4 text-blue-700">
+                    En progreso
+                  </h2>
+                  <Droppable droppableId="in_progress">
+                    {(provided) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className="min-h-[20vh] md:min-h-[35vh]"
+                      >
+                        {columns.in_progress.map((task, index) => {
+                          const isAdmin = session?.user?.role === "admin";
+                          const isAssignedToUser =
+                            task.assignedTo === session?.user?.email;
+                          const canDrag = isAdmin || isAssignedToUser;
+
+                          return (
+                            <Draggable
+                              key={task.id}
+                              draggableId={task.id}
+                              index={index}
+                              isDragDisabled={!canDrag} // Deshabilita arrastre si no es admin ni asignado
+                            >
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  className={`bg-white p-3 md:p-4 rounded shadow mb-2 md:mb-3 ${
+                                    snapshot.isDragging ? "shadow-lg" : ""
+                                  } ${
+                                    !canDrag
+                                      ? "opacity-80 cursor-not-allowed"
+                                      : ""
+                                  }`}
+                                >
+                                  {/* Contenido existente de la tarjeta */}
+                                  <div className="flex justify-between items-center mb-1 md:mb-2">
+                                    <div className="flex items-center">
+                                      {/* Avatar del usuario asignado */}
+                                      {task.assignedTo && (
+                                        <div className="flex-shrink-0 mr-2">
+                                          <img
+                                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                              task.assignedToName ||
+                                                task.assignedTo
+                                            )}&background=random&color=fff&size=32`}
+                                            alt={`${
+                                              task.assignedToName ||
+                                              task.assignedTo
+                                            }`}
+                                            title={`Asignado a: ${
+                                              task.assignedToName ||
+                                              task.assignedTo
+                                            }`}
+                                            className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
+                                          />
+                                        </div>
+                                      )}
+                                      <h3 className="font-semibold text-sm md:text-base text-clip max-w-[150px]">
+                                        {task.title}
+                                      </h3>
+                                    </div>
+                                    <span
+                                      className={`px-2 py-0.5 text-xs rounded-full ${
+                                        task.priority === "high"
+                                          ? "bg-red-100 text-red-800"
+                                          : task.priority === "medium"
+                                          ? "bg-yellow-100 text-yellow-800"
+                                          : "bg-green-100 text-green-800"
+                                      }`}
+                                    >
+                                      {task.priority}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs md:text-sm text-gray-600 line-clamp-2">
+                                    {task.description}
+                                  </p>
+
+                                  {/* Indicador visual cuando no se puede arrastrar */}
+                                  {!canDrag && (
+                                    <div className="mt-2 text-xs text-gray-500 flex items-center">
+                                      <svg
+                                        className="w-3 h-3 mr-1"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth="2"
+                                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                                        />
+                                      </svg>
+                                      Solo el propietario puede mover esta tarea
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </Draggable>
+                          );
+                        })}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </div>
+
+                <div className="bg-yellow-50 rounded-lg shadow p-3 md:p-4">
+                  <h2 className="font-bold text-base md:text-lg mb-3 md:mb-4 text-yellow-700">
+                    En revisión
+                  </h2>
+                  <Droppable droppableId="review">
+                    {(provided) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className="min-h-[20vh] md:min-h-[35vh]"
+                      >
+                        {columns.review.map((task, index) => {
+                          const isAdmin = session?.user?.role === "admin";
+                          const isAssignedToUser =
+                            task.assignedTo === session?.user?.email;
+                          const canDrag = isAdmin || isAssignedToUser;
+
+                          return (
+                            <Draggable
+                              key={task.id}
+                              draggableId={task.id}
+                              index={index}
+                              isDragDisabled={!canDrag} // Deshabilita arrastre si no es admin ni asignado
+                            >
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  className={`bg-white p-3 md:p-4 rounded shadow mb-2 md:mb-3 ${
+                                    snapshot.isDragging ? "shadow-lg" : ""
+                                  } ${
+                                    !canDrag
+                                      ? "opacity-80 cursor-not-allowed"
+                                      : ""
+                                  }`}
+                                >
+                                  {/* Contenido existente de la tarjeta */}
+                                  <div className="flex justify-between items-center mb-1 md:mb-2">
+                                    <div className="flex items-center">
+                                      {/* Avatar del usuario asignado */}
+                                      {task.assignedTo && (
+                                        <div className="flex-shrink-0 mr-2">
+                                          <img
+                                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                              task.assignedToName ||
+                                                task.assignedTo
+                                            )}&background=random&color=fff&size=32`}
+                                            alt={`${
+                                              task.assignedToName ||
+                                              task.assignedTo
+                                            }`}
+                                            title={`Asignado a: ${
+                                              task.assignedToName ||
+                                              task.assignedTo
+                                            }`}
+                                            className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
+                                          />
+                                        </div>
+                                      )}
+                                      <h3 className="font-semibold text-sm md:text-base text-clip max-w-[150px]">
+                                        {task.title}
+                                      </h3>
+                                    </div>
+                                    <span
+                                      className={`px-2 py-0.5 text-xs rounded-full ${
+                                        task.priority === "high"
+                                          ? "bg-red-100 text-red-800"
+                                          : task.priority === "medium"
+                                          ? "bg-yellow-100 text-yellow-800"
+                                          : "bg-green-100 text-green-800"
+                                      }`}
+                                    >
+                                      {task.priority}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs md:text-sm text-gray-600 line-clamp-2">
+                                    {task.description}
+                                  </p>
+
+                                  {/* Indicador visual cuando no se puede arrastrar */}
+                                  {!canDrag && (
+                                    <div className="mt-2 text-xs text-gray-500 flex items-center">
+                                      <svg
+                                        className="w-3 h-3 mr-1"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth="2"
+                                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                                        />
+                                      </svg>
+                                      Solo el propietario puede mover esta tarea
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </Draggable>
+                          );
+                        })}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </div>
+
+                <div className="bg-green-50 rounded-lg shadow p-3 md:p-4">
+                  <h2 className="font-bold text-base md:text-lg mb-3 md:mb-4 text-green-700">
+                    Completado
+                  </h2>
+                  <Droppable droppableId="done">
+                    {(provided) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className="min-h-[20vh] md:min-h-[35vh]"
+                      >
+                        {columns.done.map((task, index) => {
+                          const isAdmin = session?.user?.role === "admin";
+                          const isAssignedToUser =
+                            task.assignedTo === session?.user?.email;
+                          const canDrag = isAdmin || isAssignedToUser;
+
+                          return (
+                            <Draggable
+                              key={task.id}
+                              draggableId={task.id}
+                              index={index}
+                              isDragDisabled={!canDrag} // Deshabilita arrastre si no es admin ni asignado
+                            >
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  className={`bg-white p-3 md:p-4 rounded shadow mb-2 md:mb-3 ${
+                                    snapshot.isDragging ? "shadow-lg" : ""
+                                  } ${
+                                    !canDrag
+                                      ? "opacity-80 cursor-not-allowed"
+                                      : ""
+                                  }`}
+                                >
+                                  {/* Contenido existente de la tarjeta */}
+                                  <div className="flex justify-between items-center mb-1 md:mb-2">
+                                    <div className="flex items-center">
+                                      {/* Avatar del usuario asignado */}
+                                      {task.assignedTo && (
+                                        <div className="flex-shrink-0 mr-2">
+                                          <img
+                                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                              task.assignedToName ||
+                                                task.assignedTo
+                                            )}&background=random&color=fff&size=32`}
+                                            alt={`${
+                                              task.assignedToName ||
+                                              task.assignedTo
+                                            }`}
+                                            title={`Asignado a: ${
+                                              task.assignedToName ||
+                                              task.assignedTo
+                                            }`}
+                                            className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
+                                          />
+                                        </div>
+                                      )}
+                                      <h3 className="font-semibold text-sm md:text-base text-clip max-w-[150px]">
+                                        {task.title}
+                                      </h3>
+                                    </div>
+                                    <span
+                                      className={`px-2 py-0.5 text-xs rounded-full ${
+                                        task.priority === "high"
+                                          ? "bg-red-100 text-red-800"
+                                          : task.priority === "medium"
+                                          ? "bg-yellow-100 text-yellow-800"
+                                          : "bg-green-100 text-green-800"
+                                      }`}
+                                    >
+                                      {task.priority}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs md:text-sm text-gray-600 line-clamp-2">
+                                    {task.description}
+                                  </p>
+
+                                  {/* Indicador visual cuando no se puede arrastrar */}
+                                  {!canDrag && (
+                                    <div className="mt-2 text-xs text-gray-500 flex items-center">
+                                      <svg
+                                        className="w-3 h-3 mr-1"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth="2"
+                                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                                        />
+                                      </svg>
+                                      Solo el propietario puede mover esta tarea
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </Draggable>
+                          );
+                        })}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </div>
+              </div>
+            </DragDropContext>
+
+            <div id="usersList" className="mt-8 bg-white rounded-lg shadow p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-800">
+                  Usuarios del Proyecto
                 </h2>
-                <Droppable droppableId="backlog">
-                  {(provided) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className="min-h-[20vh] md:min-h-[35vh]"
+                {isAdmin && (
+                  <button
+                    onClick={() => {
+                      fetchAvailableUsers();
+                      setShowAddUserModal(true);
+                    }}
+                    className="flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
+                  >
+                    <svg
+                      className="w-4 h-4 mr-1"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      {columns.backlog.map((task, index) => (
-                        <Draggable
-                          key={task.id}
-                          draggableId={task.id}
-                          index={index}
-                        >
-                          {(provided, snapshot) =>
-                            renderTaskCard(task, provided, snapshot)
-                          }
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M12 4v16m8-8H4"
+                      />
+                    </svg>
+                    Añadir usuarios
+                  </button>
+                )}
               </div>
 
-              <div className="bg-blue-50 rounded-lg shadow p-3 md:p-4">
-                <h2 className="font-bold text-base md:text-lg mb-3 md:mb-4 text-blue-700">
-                  En progreso
-                </h2>
-                <Droppable droppableId="in_progress">
-                  {(provided) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className="min-h-[20vh] md:min-h-[35vh]"
-                    >
-                      {columns.in_progress.map((task, index) => (
-                        <Draggable
-                          key={task.id}
-                          draggableId={task.id}
-                          index={index}
-                        >
-                          {(provided, snapshot) =>
-                            renderTaskCard(task, provided, snapshot)
-                          }
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              </div>
+              {project.users && project.users.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {project.users.map((user, index) => {
+                    // Verificar el tipo de usuario y extraer los datos necesarios
+                    const username = getUserDisplayName(user);
+                    const userEmail = getUserEmail(user).toLowerCase().trim(); // Normalizar aquí también
+                    const isCurrentUser =
+                      userEmail === session?.user?.email?.toLowerCase().trim();
 
-              <div className="bg-yellow-50 rounded-lg shadow p-3 md:p-4">
-                <h2 className="font-bold text-base md:text-lg mb-3 md:mb-4 text-yellow-700">
-                  En revisión
-                </h2>
-                <Droppable droppableId="review">
-                  {(provided) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className="min-h-[20vh] md:min-h-[35vh]"
-                    >
-                      {columns.review.map((task, index) => (
-                        <Draggable
-                          key={task.id}
-                          draggableId={task.id}
-                          index={index}
-                        >
-                          {(provided, snapshot) =>
-                            renderTaskCard(task, provided, snapshot)
-                          }
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              </div>
+                    // Verificar si el usuario está en línea
+                    const isOnline = onlineUsers.includes(userEmail);
 
-              <div className="bg-green-50 rounded-lg shadow p-3 md:p-4">
-                <h2 className="font-bold text-base md:text-lg mb-3 md:mb-4 text-green-700">
-                  Completado
-                </h2>
-                <Droppable droppableId="done">
-                  {(provided) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className="min-h-[20vh] md:min-h-[35vh]"
+                    // Log para depuración
+                    console.log(
+                      `Usuario ${userEmail}: ${isOnline ? "online" : "offline"}`
+                    );
+
+                    return (
+                      <div
+                        key={userEmail}
+                        className={`flex items-center p-3 rounded-lg border ${
+                          isCurrentUser
+                            ? "bg-blue-50 border-blue-200"
+                            : "bg-gray-50 border-gray-200"
+                        } hover:shadow-md transition-all`}
+                      >
+                        <div className="relative">
+                          <img
+                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                              username
+                            )}&background=random&color=fff&size=48`}
+                            alt={username}
+                            className={`w-12 h-12 rounded-full ${
+                              isCurrentUser ? "ring-2 ring-blue-500" : ""
+                            }`}
+                          />
+                          <span
+                            className={`absolute bottom-0 right-0 w-3.5 h-3.5 border-2 border-white rounded-full ${
+                              isOnline ? "bg-green-500" : "bg-gray-300"
+                            }`}
+                            title={isOnline ? "En línea" : "Desconectado"}
+                          ></span>
+                        </div>
+                        <div className="ml-3">
+                          <div className="text-sm font-medium text-gray-900">
+                            {username}
+                            {isCurrentUser && (
+                              <span className="ml-1.5 text-xs font-normal text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                                Tú
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500 truncate max-w-[120px]">
+                            {userEmail}
+                            {isOnline && (
+                              <span className="ml-1.5 text-xs font-normal text-green-600">
+                                • en línea
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <svg
+                    className="mx-auto h-12 w-12 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="1.5"
+                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zM6 10a2 2 0 11-4 0 2 2 0 014 0z"
+                    />
+                  </svg>
+                  <p className="mt-2 text-sm text-gray-500">
+                    No hay usuarios asignados a este proyecto.
+                  </p>
+                  {isAdmin && (
+                    <button
+                      onClick={() => {
+                        fetchAvailableUsers();
+                        setShowAddUserModal(true);
+                      }}
+                      className="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
                     >
-                      {columns.done.map((task, index) => (
-                        <Draggable
-                          key={task.id}
-                          draggableId={task.id}
-                          index={index}
-                        >
-                          {(provided, snapshot) =>
-                            renderTaskCard(task, provided, snapshot)
-                          }
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
+                      <svg
+                        className="w-4 h-4 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M12 4v16m8-8H4"
+                        />
+                      </svg>
+                      Añadir el primer usuario
+                    </button>
                   )}
-                </Droppable>
-              </div>
+                </div>
+              )}
+
+              {/* Estadísticas de colaboración - solo visible si hay al menos 3 usuarios */}
+              {project.users && project.users.length >= 3 && (
+                <div className="mt-6 border-t border-gray-200 pt-4">
+                  <div className="flex flex-wrap justify-between text-sm text-gray-600">
+                    <div className="flex items-center mb-2">
+                      <svg
+                        className="w-4 h-4 mr-1 text-gray-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zM6 10a2 2 0 11-4 0 2 2 0 014 0z"
+                        />
+                      </svg>
+                      Total: {project.users.length} usuarios
+                    </div>
+                    <div className="flex items-center mb-2">
+                      <svg
+                        className="w-4 h-4 mr-1 text-gray-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
+                      </svg>
+                      Actualizado: {new Date().toLocaleDateString()}
+                    </div>
+                  </div>
+
+                  {/* Avatares apilados para efecto visual */}
+                  <div className="flex -space-x-2 overflow-hidden mt-3">
+                    {project.users.slice(0, 5).map((user, index) => (
+                      <img
+                        key={getUserEmail(user)}
+                        className={`inline-block h-8 w-8 rounded-full ring-2 ring-white`}
+                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                          getUserDisplayName(user)
+                        )}&background=random&color=fff&size=32`}
+                        alt={getUserDisplayName(user)}
+                      />
+                    ))}
+                    {project.users.length > 5 && (
+                      <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-300 ring-2 ring-white text-xs font-medium text-gray-800">
+                        +{project.users.length - 5}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-          </DragDropContext>
+          </div>
         )}
 
         {activeTab === "chat" && (
@@ -842,6 +1767,12 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
                 </div>
               </div>
             )}
+          </div>
+        )}
+        {presenceConnected && (
+          <div className="mt-2 text-xs text-gray-500 flex items-center">
+            <span className="w-2 h-2 rounded-full bg-green-500 mr-1"></span>
+            Sistema de presencia activo
           </div>
         )}
       </main>

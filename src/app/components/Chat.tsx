@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import useChat from "@/hooks/useChat";
 import { useSession } from "next-auth/react";
 import { FaPaperPlane } from "react-icons/fa";
+import usePresence from "@/hooks/usePresence"; // Hook para obtener usuarios conectados
 
 export default function Chat({ projectId }: { projectId: string }) {
   const { data: session } = useSession();
@@ -11,9 +12,13 @@ export default function Chat({ projectId }: { projectId: string }) {
 
   // Usar nombre de usuario o email como fallback
   const userName = session?.user?.name || session?.user?.email || "Usuario";
+  const userEmail = session?.user?.email;
 
   // Obtener chat con ID de proyecto
   const { messages, connected, sendMessage, isLoading } = useChat(projectId);
+
+  // Obtener información de usuarios conectados
+  const { onlineUsers } = usePresence(projectId, userEmail, userName);
 
   // Auto-scroll al final cuando llegan nuevos mensajes
   useEffect(() => {
@@ -28,6 +33,18 @@ export default function Chat({ projectId }: { projectId: string }) {
 
     sendMessage(message, userName);
     setMessage("");
+  };
+
+  // Función para obtener información del usuario (avatar y estado de conexión)
+  const getUserInfo = (username: string) => {
+    const email = username.toLowerCase().trim();
+    const displayName = username.split("@")[0]; // Usar la parte antes de @ como nombre
+    const isOnline = onlineUsers.includes(email); // Verificar si está conectado
+    const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      displayName
+    )}&background=random&color=fff&size=32`;
+
+    return { displayName, isOnline, avatar };
   };
 
   return (
@@ -66,6 +83,8 @@ export default function Chat({ projectId }: { projectId: string }) {
         ) : (
           messages.map((msg, index) => {
             const isCurrentUser = msg.user === userName;
+            const { displayName, isOnline, avatar } = getUserInfo(msg.user);
+
             const timestamp =
               typeof msg.timestamp === "string"
                 ? new Date(msg.timestamp).toLocaleTimeString([], {
@@ -80,8 +99,26 @@ export default function Chat({ projectId }: { projectId: string }) {
             return (
               <div
                 key={msg._id || `temp-${index}`}
-                className={`flex ${isCurrentUser ? "justify-end" : ""}`}
+                className={`flex items-start ${
+                  isCurrentUser ? "justify-end" : ""
+                }`}
               >
+                {/* Avatar para mensajes de otros usuarios */}
+                {!isCurrentUser && (
+                  <div className="relative flex-shrink-0 mr-2">
+                    <img
+                      src={avatar}
+                      alt={displayName}
+                      className="w-8 h-8 rounded-full"
+                    />
+                    <span
+                      className={`absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-white rounded-full ${
+                        isOnline ? "bg-green-500" : "bg-gray-300"
+                      }`}
+                    ></span>
+                  </div>
+                )}
+
                 <div
                   className={`max-w-[80%] rounded-lg p-3 ${
                     isCurrentUser
@@ -90,7 +127,14 @@ export default function Chat({ projectId }: { projectId: string }) {
                   }`}
                 >
                   {!isCurrentUser && (
-                    <div className="font-medium text-xs mb-1">{msg.user}</div>
+                    <div className="font-medium text-xs mb-1 flex items-center">
+                      {displayName}
+                      {isOnline && (
+                        <span className="ml-1.5 text-xs font-normal text-green-600">
+                          • en línea
+                        </span>
+                      )}
+                    </div>
                   )}
                   <div>{msg.message}</div>
                   <div
@@ -101,6 +145,20 @@ export default function Chat({ projectId }: { projectId: string }) {
                     {timestamp}
                   </div>
                 </div>
+
+                {/* Avatar para mensajes propios (a la derecha) */}
+                {isCurrentUser && (
+                  <div className="relative flex-shrink-0 ml-2">
+                    <img
+                      src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                        userName.split("@")[0]
+                      )}&background=random&color=fff&size=32`}
+                      alt={userName}
+                      className="w-8 h-8 rounded-full"
+                    />
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-white rounded-full bg-green-500"></span>
+                  </div>
+                )}
               </div>
             );
           })

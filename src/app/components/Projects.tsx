@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
-import { unstable_ViewTransition as ViewTransition } from 'react'
+import { unstable_ViewTransition as ViewTransition } from "react";
 import SideBar from "./SideBar";
 import Link from "next/link";
 
@@ -53,12 +53,20 @@ export default function Projects() {
       }
 
       const data: Project[] = await res.json();
-      const userProjects = data.filter(
-        (project) =>
-          project.users?.includes(session?.user?.email || "") ||
-          project.users?.includes(session?.user?.name || "")
-      );
-      setProjects(userProjects);
+
+      // Si el usuario es admin, muestra todos los proyectos
+      // Si no, filtra solo los que incluyen al usuario
+      if (session?.user?.role === "admin") {
+        setProjects(data);
+      } else {
+        const userProjects = data.filter(
+          (project) =>
+            project.users?.includes(session?.user?.email || "") ||
+            project.users?.includes(session?.user?.name || "")
+        );
+        setProjects(userProjects);
+      }
+
       setLoading(false);
     } catch (err) {
       console.error("Error fetching projects:", err);
@@ -110,40 +118,38 @@ export default function Projects() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.length > 0 ? (
-              projects.map((project) =>
-                project.users?.includes(session?.user?.email || "") ? (
-                  <Link
-                    href={`/projects/${project._id}`}
-                    key={project._id}
-                    passHref
-                    legacyBehavior
-                  >
-                    <a>
-                      <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-                        <h2 className="text-xl font-semibold mb-2">
-                          {project.name}
-                        </h2>
-                        <p className="text-gray-600 mb-4">
-                          {project.description}
-                        </p>
-                        {project.status && (
-                          <span
-                            className={`px-3 py-1 rounded-full text-sm ${
-                              project.status === "active"
-                                ? "bg-green-100 text-green-800"
-                                : project.status === "completed"
-                                ? "bg-blue-100 text-blue-800"
-                                : "bg-yellow-100 text-yellow-800"
-                            }`}
-                          >
-                            {project.status}
-                          </span>
-                        )}
-                      </div>
-                    </a>
-                  </Link>
-                ) : null
-              )
+              projects.map((project) => (
+                <Link
+                  href={`/projects/${project._id}`}
+                  key={project._id}
+                  passHref
+                  legacyBehavior
+                >
+                  <a>
+                    <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                      <h2 className="text-xl font-semibold mb-2">
+                        {project.name}
+                      </h2>
+                      <p className="text-gray-600 mb-4">
+                        {project.description}
+                      </p>
+                      {project.status && (
+                        <span
+                          className={`px-3 py-1 rounded-full text-sm ${
+                            project.status === "active"
+                              ? "bg-green-100 text-green-800"
+                              : project.status === "completed"
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-yellow-100 text-yellow-800"
+                          }`}
+                        >
+                          {project.status}
+                        </span>
+                      )}
+                    </div>
+                  </a>
+                </Link>
+              ))
             ) : (
               <div className="col-span-full text-center py-8">
                 <p className="text-gray-500">No hay proyectos disponibles</p>

@@ -27,6 +27,7 @@ export default function AddTaskForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [users, setUsers] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -43,9 +44,9 @@ export default function AddTaskForm() {
     } else if (status === "authenticated" && session?.user?.email) {
       setFormData((prev) => ({
         ...prev,
-        assignedTo: session.user.email || "",
       }));
       fetchProjects();
+      fetchUsers();
     }
   }, [status, router, session]);
 
@@ -57,6 +58,27 @@ export default function AddTaskForm() {
       }));
     }
   }, [projectId]);
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch("/api/users", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error("Error al obtener usuarios");
+      }
+
+      const data = await res.json();
+      setUsers(data);
+    } catch (err) {
+      console.error("Error fetching users:", err);
+      setError("No se pudieron cargar los usuarios");
+    }
+  }
 
   const fetchProjects = async () => {
     try {
@@ -290,22 +312,23 @@ export default function AddTaskForm() {
                   >
                     Asignado a
                   </label>
-                  <input
+                  <select
                     id="assignedTo"
-                    type="email"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     value={formData.assignedTo}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        assignedTo: e.target.value,
-                      }))
-                    }
-                    placeholder="Email del responsable"
-                  />
-                  <p className="text-xs text-gray-500 mt-1 ml-1">
-                    Por defecto, la tarea está asignada a tu cuenta.
-                  </p>
+                    >
+                    <option value={session?.user?.email || ""}>
+                      {session?.user?.email || session?.user?.name}
+                    </option>
+                    {session?.user?.role === "admin" &&
+                      users.map((user) => (
+                        session?.user?.email !== user.email && (
+                        <option key={user.email} value={user.email}>
+                          {user.email || user.name}
+                        </option>
+                        )
+                      ))}
+                    </select>
                 </div>
               </div>
 

@@ -45,16 +45,23 @@ export default function Tasks() {
   const [formError, setFormError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [updateSuccess, setUpdateSuccess] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
     } else if (status === "authenticated" && session?.user?.email) {
-      fetchData();
+      // Establecer isAdmin antes de fetchData
+      if (session?.user?.role === "admin") {
+        setIsAdmin(true);
+        fetchData(true); // Pasar flag indicando que es admin
+      } else {
+        fetchData(false);
+      }
     }
   }, [status, router, session]);
 
-  const fetchData = async () => {
+  const fetchData = async (adminUser = false) => {
     try {
       const [projectsRes, tasksRes] = await Promise.all([
         fetch("/api/projects", {
@@ -73,9 +80,12 @@ export default function Tasks() {
       const projectsData = await projectsRes.json();
       const tasksData = await tasksRes.json();
 
-      const userTasks = tasksData.filter(
-        (task: Task) => task.assignedTo === session?.user?.email
-      );
+      // Usar el parámetro adminUser pasado directamente, en lugar de isAdmin (que podría no estar actualizado)
+      const userTasks = adminUser
+        ? tasksData // Mostrar todas las tareas para admin
+        : tasksData.filter(
+            (task: Task) => task.assignedTo === session?.user?.email
+          );
 
       setProjects(projectsData);
       setTasks(userTasks);
@@ -297,6 +307,9 @@ export default function Tasks() {
                       Estado
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Asignado a
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Prioridad
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -319,13 +332,60 @@ export default function Tasks() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <Link href={`/projects/${task.project}`}>
-                        <span className="text-sm text-gray-900">
-                          {getProjectName(task.project)}
-                        </span>
+                          <span className="text-sm text-gray-900">
+                            {getProjectName(task.project)}
+                          </span>
                         </Link>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {getStatusBadge(task.status)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {task.assignedTo ? (
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-8 w-8 relative">
+                              <img
+                                className="h-8 w-8 rounded-full bg-gray-200 object-cover border border-gray-200"
+                                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                  task.assignedTo.split("@")[0]
+                                )}&background=random&color=fff&size=32`}
+                                alt={task.assignedTo.split("@")[0]}
+                              />
+                              <span className="absolute bottom-0 right-0 block h-2 w-2 rounded-full ring-1 ring-white bg-green-400"></span>
+                            </div>
+                            <div className="ml-3">
+                              <div className="text-sm font-medium text-gray-900">
+                                {task.assignedTo.split("@")[0]}
+                              </div>
+                              <div className="text-xs text-gray-500 truncate max-w-[120px]">
+                                {task.assignedTo}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-8 w-8">
+                              <span className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
+                                <svg
+                                  className="h-4 w-4"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              </span>
+                            </div>
+                            <div className="ml-3">
+                              <div className="text-sm font-medium text-gray-500">
+                                No asignado
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
