@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FiEdit, FiX, FiLoader, FiSave, FiAlertCircle } from "react-icons/fi";
 import { useSession } from "next-auth/react";
+import Swal from "sweetalert2";
 
 interface ProjectHeaderProps {
   id: string;
@@ -21,7 +22,6 @@ export default function ProjectHeader({
   description,
   isAdmin,
   category: initialCategory = "general",
-  deadline: initialDeadline = "",
   status: initialStatus = "active",
 }: ProjectHeaderProps) {
   const router = useRouter();
@@ -34,7 +34,6 @@ export default function ProjectHeader({
   const [formName, setFormName] = useState(name);
   const [formDescription, setFormDescription] = useState(description);
   const [formCategory, setFormCategory] = useState(initialCategory);
-  const [formDeadline, setFormDeadline] = useState(initialDeadline);
   const [formStatus, setFormStatus] = useState(initialStatus);
 
   // Estado para el proceso de guardado
@@ -49,25 +48,12 @@ export default function ProjectHeader({
       setFormCategory(initialCategory);
       setFormStatus(initialStatus);
 
-      // Formatear la fecha si existe
-      if (initialDeadline) {
-        try {
-          const date = new Date(initialDeadline);
-          setFormDeadline(date.toISOString().split("T")[0]);
-        } catch (e) {
-          console.error("Error formateando fecha:", e);
-          setFormDeadline("");
-        }
-      } else {
-        setFormDeadline("");
-      }
     }
   }, [
     showEditModal,
     name,
     description,
     initialCategory,
-    initialDeadline,
     initialStatus,
   ]);
 
@@ -83,7 +69,6 @@ export default function ProjectHeader({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validación básica
     if (!formName.trim() || !formDescription.trim()) {
       setFormError("El nombre y la descripción son obligatorios");
       return;
@@ -102,7 +87,6 @@ export default function ProjectHeader({
           name: formName,
           description: formDescription,
           category: formCategory,
-          deadline: formDeadline || undefined,
           status: formStatus,
         }),
       });
@@ -112,11 +96,15 @@ export default function ProjectHeader({
         throw new Error(`Error ${res.status}: ${errorData}`);
       }
 
-      // Éxito en la actualización
-      setShowEditModal(false);
-
-      // Recargar la página para ver los cambios
-      router.refresh();
+      Swal.fire({
+        icon: "success",
+        title: "Proyecto actualizado",
+        text: "Los cambios se han guardado correctamente.",
+        confirmButtonText: "Aceptar",
+      }).then(() => {
+        setShowEditModal(false);
+        router.refresh();
+      });
     } catch (error) {
       console.error("Error actualizando proyecto:", error);
       setFormError(
@@ -141,6 +129,7 @@ export default function ProjectHeader({
     { id: "on_hold", name: "En espera" },
     { id: "completed", name: "Completado" },
     { id: "canceled", name: "Cancelado" },
+    { id: "in-progress", name: "En progreso" },
   ];
 
   return (
@@ -188,7 +177,7 @@ export default function ProjectHeader({
 
       {/* Modal para editar proyecto */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
             {/* Cabecera del modal */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 text-white rounded-t-lg flex justify-between items-center">

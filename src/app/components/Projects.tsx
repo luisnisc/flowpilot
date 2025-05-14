@@ -14,7 +14,7 @@ interface Project {
   description: string;
   tasks?: string[];
   users?: string[];
-  status?: "active" | "completed" | "archived" | "on_hold" | "canceled" | "in-progress";
+  status?: "active" | "completed" | "on_hold" | "canceled" | "in-progress";
 }
 
 export default function Projects() {
@@ -129,7 +129,7 @@ export default function Projects() {
                               ? "bg-blue-100 text-blue-800"
                               : project.status === "on_hold"
                               ? "bg-yellow-100 text-yellow-800"
-                              : project.status === "archived" ||
+                              : 
                                 project.status === "canceled"
                               ? "bg-gray-100 text-gray-800"
                               : "bg-purple-100 text-purple-800"
@@ -143,7 +143,7 @@ export default function Projects() {
                                 ? "bg-blue-600"
                                 : project.status === "on_hold"
                                 ? "bg-yellow-600"
-                                : project.status === "archived" ||
+                                :
                                   project.status === "canceled"
                                 ? "bg-gray-600"
                                 : "bg-purple-600"
@@ -155,8 +155,6 @@ export default function Projects() {
                             ? "Completado"
                             : project.status === "on_hold"
                             ? "En espera"
-                            : project.status === "archived"
-                            ? "Archivado"
                             : project.status === "canceled"
                             ? "Cancelado"
                             : project.status === "in-progress"
