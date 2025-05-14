@@ -11,13 +11,13 @@ export const config = {
   },
 };
 
-type SocketServer = NextApiResponse & {
+export interface SocketServer extends NextApiRequest {
   socket: {
     server: NetServer & {
       io?: Server;
     };
   };
-};
+}
 
 interface Message {
   projectId: string;
@@ -39,11 +39,13 @@ interface TaskUpdateData {
   task: any;
 }
 
-export default async function handler(req: NextApiRequest, res: SocketServer) {
-  // Verificar si Socket.IO ya está inicializado
+// Almacenar usuarios conectados por proyecto
+const connectedUsers: Record<string, Set<string>> = {};
+
+export default async function handler(req: NextApiRequest, res: any) {
   if (res.socket.server.io) {
-    console.log("Socket.IO ya está inicializado");
-    res.status(200).json({ ok: true, status: "Socket.IO ya inicializado" });
+    console.log("Socket ya inicializado");
+    res.end();
     return;
   }
 
@@ -201,6 +203,94 @@ export default async function handler(req: NextApiRequest, res: SocketServer) {
         console.log(
           `Kanban cliente desconectado: ${socket.id}, razón: ${reason}`
         );
+      });
+    });
+
+    // Añadir un nuevo namespace para presencia
+    const presenceNamespace = io.of("/presence");
+
+    presenceNamespace.on("connection", (socket: Socket) => {
+      console.log(`👥 Presence cliente conectado: ${socket.id}`);
+      let currentUserEmail: string | null = null;
+      let currentProjectId: string | null = null;
+
+      // Cuando un usuario se une a un proyecto
+      socket.on("userJoined", ({ projectId, userEmail, userName }) => {
+        if (!projectId || !userEmail) return;
+
+        currentUserEmail = userEmail.toLowerCase().trim(); // Normalizar el email
+        currentProjectId = projectId;
+
+        // Log para depuración
+        console.log(
+          `👤 Usuario ${currentUserEmail} conectado al proyecto ${projectId}`
+        );
+
+        // Inicializar el conjunto si no existe
+        if (!connectedUsers[projectId]) {
+          connectedUsers[projectId] = new Set();
+        }
+
+        // Añadir usuario al proyecto
+        connectedUsers[projectId].add(currentUserEmail);
+
+        // Emitir lista actualizada a todos en el proyecto
+        const usersInProject = Array.from(connectedUsers[projectId]);
+        console.log(
+          `🔄 Emitiendo usersOnline con: ${usersInProject.length} usuarios`
+        );
+
+        // Emitir al cliente que acaba de unirse primero (para respuesta inmediata)
+        socket.emit("usersOnline", usersInProject);
+
+        // Luego emitir a todos los demás en la sala
+        socket.to(projectId).emit("usersOnline", usersInProject);
+
+        // Unir el socket a la sala del proyecto
+        socket.join(projectId);
+      });
+
+      // Heartbeat para mantener activa la sesión
+      socket.on("heartbeat", ({ userEmail, projectId }) => {
+        // Se puede usar para actualizar timestamps de actividad si es necesario
+        if (
+          userEmail &&
+          projectId &&
+          connectedUsers[projectId]?.has(userEmail)
+        ) {
+          // Actualizar timestamp de último heartbeat si se implementa
+        }
+      });
+
+      // Cuando un usuario se desconecta
+      socket.on("disconnect", () => {
+        if (
+          currentProjectId &&
+          currentUserEmail &&
+          connectedUsers[currentProjectId]
+        ) {
+          // Eliminar usuario del proyecto
+          connectedUsers[currentProjectId].delete(currentUserEmail);
+
+          // Emitir lista actualizada
+          const usersInProject = Array.from(connectedUsers[currentProjectId]);
+          presenceNamespace
+            .to(currentProjectId)
+            .emit("usersOnline", usersInProject);
+
+          console.log(
+            `👋 Usuario ${currentUserEmail} desconectado del proyecto ${currentProjectId}`
+          );
+          console.log(
+            `🔄 Usuarios restantes en proyecto ${currentProjectId}:`,
+            usersInProject
+          );
+
+          // Limpiar conjuntos vacíos para evitar fugas de memoria
+          if (connectedUsers[currentProjectId].size === 0) {
+            delete connectedUsers[currentProjectId];
+          }
+        }
       });
     });
 

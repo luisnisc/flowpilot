@@ -41,6 +41,7 @@ export default function useProjectSync(
   const pendingUpdatesRef = useRef<
     { taskId: string; newStatus: string; taskData: Task }[]
   >([]);
+  const [tasksInFlight, setTasksInFlight] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     // Si no hay ID de proyecto, no intentamos conectarnos
@@ -134,11 +135,28 @@ export default function useProjectSync(
           processQueuedUpdates();
         });
 
-        // Escuchar actualizaciones de tareas
+        // Escuchar actualizaciones de tareas - modificar esto para evitar rebotes
         socketRef.current.on("taskUpdated", (task: Task) => {
           console.log("Tarea actualizada recibida:", task);
 
-          updateLocalState(task);
+          // IMPORTANTE: Solo actualizar si la tarea no viene de una actualización propia reciente
+          const isRecentLocalUpdate = pendingUpdatesRef.current.some(
+            (update) =>
+              update.taskId === task.id && update.newStatus === task.status
+          );
+
+          if (!isRecentLocalUpdate) {
+            // Solo actualizar si no es una actualización que nosotros mismos acabamos de hacer
+            updateLocalState(task);
+          } else {
+            console.log("Ignorando actualización redundante de tarea", task.id);
+
+            // Limpiar esta actualización de la cola de pendientes
+            pendingUpdatesRef.current = pendingUpdatesRef.current.filter(
+              (update) =>
+                !(update.taskId === task.id && update.newStatus === task.status)
+            );
+          }
         });
 
         // Escuchar errores del servidor
@@ -252,67 +270,67 @@ export default function useProjectSync(
     newStatus: string,
     taskData: Task
   ): void => {
-    // Actualizar el estado local para respuesta inmediata
-    const updatedTask: Task = {
-      ...taskData,
-      status: newStatus as Task["status"],
-    };
+    console.log("Actualizando tarea:", taskId, "a estado:", newStatus); // Log para debugging
 
-    // Define updateLocalState aquí, en lugar de usar una función externa
-    const updateLocalState = (task: Task) => {
-      setColumns((prevColumns) => {
-        const newColumns = JSON.parse(JSON.stringify(prevColumns)) as Columns;
-
-        // Mapeo de estado a nombre de columna
-        const statusToColumn: Record<string, keyof Columns> = {
-          pending: "backlog",
-          in_progress: "in_progress",
-          review: "review",
-          done: "done",
-        };
-
-        const targetColumn = statusToColumn[task.status] || "backlog";
-
-        // Eliminar la tarea de todas las columnas
-        Object.keys(newColumns).forEach((columnKey) => {
-          const columnName = columnKey as keyof Columns;
-          newColumns[columnName] = newColumns[columnName].filter(
-            (t) => t.id !== task.id
-          );
-        });
-
-        // Añadir la tarea a la columna correcta
-        newColumns[targetColumn].push(task);
-
-        return newColumns;
-      });
-    };
-
-    // Llamar a la función recién definida
-    updateLocalState(updatedTask);
-
-    // Luego intentamos enviar la actualización a través del socket
-    if (!socketRef.current || !connected) {
-      console.error("No se puede actualizar tarea - socket desconectado");
-
-      // Guardar la actualización para enviarla cuando se reconecte
-      pendingUpdatesRef.current.push({ taskId, newStatus, taskData });
-
-      // Intentamos actualización mediante API REST como fallback
-      updateTaskViaAPI(taskId, newStatus);
+    // Verificar que el estado sea válido
+    if (!["pending", "in_progress", "review", "done"].includes(newStatus)) {
+      console.error(`Estado de tarea no válido: ${newStatus}`);
       return;
     }
 
-    // Emitir el evento al servidor
-    try {
-      console.log(`Emitiendo actualización de tarea: ${taskId} → ${newStatus}`);
-      socketRef.current.emit("updateTask", {
-        projectId,
-        task: updatedTask,
-      } as TaskUpdatePayload);
-    } catch (err) {
-      console.error("Error emitiendo evento updateTask:", err);
-      pendingUpdatesRef.current.push({ taskId, newStatus, taskData });
+    // Crear una copia profunda del objeto de tarea para evitar referencias
+    const updatedTask = JSON.parse(
+      JSON.stringify({
+        ...taskData,
+        status: newStatus as Task["status"],
+      })
+    );
+
+    // Actualizar el estado una sola vez para evitar rebotes
+    setColumns((prevColumns) => {
+      const newColumns = JSON.parse(JSON.stringify(prevColumns)) as Columns;
+
+      // Mapeo de estado a nombre de columna (asegurarse de que sea exacto)
+      const statusToColumn: Record<string, keyof Columns> = {
+        pending: "backlog",
+        in_progress: "in_progress",
+        review: "review", // Verificar que coincida exactamente
+        done: "done",
+      };
+
+      // Eliminar la tarea de todas las columnas primero
+      Object.keys(newColumns).forEach((columnKey) => {
+        const columnName = columnKey as keyof Columns;
+        newColumns[columnName] = newColumns[columnName].filter(
+          (t) => t.id !== taskId
+        );
+      });
+
+      // Añadir la tarea a la columna correcta
+      const targetColumn = statusToColumn[newStatus] || "backlog";
+      newColumns[targetColumn].push(updatedTask);
+
+      return newColumns;
+    });
+
+    // Emitir el evento al servidor si estamos conectados
+    if (socketRef.current && connected) {
+      try {
+        socketRef.current.emit("updateTask", {
+          projectId,
+          task: {
+            ...updatedTask,
+            id: taskId, // Asegúrate de que el ID se envía correctamente
+          },
+        });
+        console.log("Evento Socket.IO enviado para actualizar tarea", taskId);
+      } catch (err) {
+        console.error("Error emitiendo evento updateTask:", err);
+        updateTaskViaAPI(taskId, newStatus);
+      }
+    } else {
+      console.log("Socket desconectado, usando API REST como fallback");
+      updateTaskViaAPI(taskId, newStatus);
     }
   };
 
@@ -339,7 +357,7 @@ export default function useProjectSync(
   };
 
   // Modificar onDragEnd para ser más robusto
-  const onDragEnd = (result:any) => {
+  const onDragEnd = (result: any) => {
     const { destination, source, draggableId } = result;
 
     if (

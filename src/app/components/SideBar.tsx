@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
+import UserStatsWidget from "./UserStatsWidget";
 import {
   FiMenu,
   FiX,
@@ -125,11 +126,7 @@ export default function SideBar() {
   };
 
   const isActive = (path: string): string => {
-    return pathname === path ? "bg-gray-700" : "";
-  };
-
-  const handleLogout = () => {
-    signOut({ callbackUrl: "/login" });
+    return pathname?.includes(path) ? "bg-gray-700" : "";
   };
 
   const mobileToggle = (
@@ -166,20 +163,31 @@ export default function SideBar() {
             </div>
           </div>
         ) : (
-          <span className="text-sm mb-2 text-center w-full">Bienvenido</span>
+          null
         )}
         <div className="text-center mb-2">
           {session?.user?.name || "Usuario"}
         </div>
+      
+
         <button
-          title="Configuración de usuario"
-          className="hover:cursor-pointer"
-          onClick={() => setShowModal(true)}
-          aria-label="Abrir configuración de usuario"
+          title="Cerrar sesión"
+          onClick={() => signOut()}
+          className="flex items-center justify-center px-4  text-red-500 rounded hover:bg-gray-600"
         >
-          <FiSettings size={20} className="text-white" />
+          <FiLogOut className="mr-2" size={18} />
         </button>
       </div>
+      {session?.user && (
+          <div className="w-full px-3 mt-2 mb-4">
+            <div className="bg-gray-700 rounded-md p-2">
+              <div className="text-xs text-gray-300 mb-1">
+                Tareas completadas
+              </div>
+              <UserStatsWidget email={session.user.email || ""} />
+            </div>
+          </div>
+        )}
 
       <div className="h-0.25 w-full bg-white my-4 md:mb-6"></div>
 
@@ -221,15 +229,7 @@ export default function SideBar() {
               <span>Tareas</span>
             </Link>
           </li>
-          <li className="md:hidden pt-4 mt-4 border-t border-gray-700 w-full">
-            <button
-              onClick={handleLogout}
-              className="flex items-center justify-center w-full px-4 py-3 text-red-300 hover:bg-gray-700 rounded"
-            >
-              <FiLogOut className="mr-2" size={18} />
-              <span>Cerrar sesión</span>
-            </button>
-          </li>
+          
         </ul>
       </nav>
     </>

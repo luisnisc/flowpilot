@@ -35,8 +35,12 @@ export default function DashBoard() {
   const [error, setError] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
+    if (session?.user?.role === "admin") {
+      setIsAdmin(true);
+    }
     if (status === "unauthenticated") {
       router.push("/login");
     } else if (status === "authenticated") {
@@ -70,16 +74,21 @@ export default function DashBoard() {
           setLoading(false);
         });
     }
-  }, [status, router]);
+  }, [status, router, session]);
 
-  const userTasks = tasks.filter(
+  const userTasks = isAdmin ? tasks : tasks.filter(
     (task) => 
       task.assignedTo === session?.user?.email && 
       task.status !== "done"
   );
 
-  const activeProjects = projects.filter(
+  const activeProjects = isAdmin ? projects.filter(
     (project) => project.status !== "completed"
+  ) : projects.filter(
+    (project) =>
+      project.status !== "completed" &&
+      (project.users?.includes(session?.user?.email || "") || 
+       project.users?.includes(session?.user?.name || ""))
   );
 
   const getPriorityColor = (priority: string) => {
@@ -135,14 +144,8 @@ export default function DashBoard() {
           <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold">
             Bienvenido, {session?.user?.name || session?.user?.email}
           </h1>
-          <button
-            onClick={() => signOut({ callbackUrl: "/login" })}
-            className="px-3 py-1 md:px-4 md:py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm md:text-base"
-          >
-            Cerrar sesión
-          </button>
         </div>
-        <div className="flex items-center justify-center h-[85vh]">
+        <div className="flex items-center justify-center h-[85vh] mt-15 md:mt-0">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <div className="p-4 bg-blue-600 text-white flex justify-between items-center">
@@ -228,7 +231,6 @@ export default function DashBoard() {
               ) : (
                 <ul className="space-y-3">
                   {activeProjects.map((project) => (
-                    project.users?.includes(session?.user?.email || session?.user?.name || "") && (
                     <li 
                       key={project._id} 
                       className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow"
@@ -245,7 +247,7 @@ export default function DashBoard() {
                         </div>
                       </Link>
                     </li>
-                    )
+                    
                   ))}
                 </ul>
               )}
