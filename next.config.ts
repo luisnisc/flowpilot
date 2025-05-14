@@ -18,16 +18,6 @@ const nextConfig = {
       },
     ];
   },
-  
-  webpack: (config:any) => {
-    // Evitar problemas con bufferutil y utf-8-validate
-    if (!config.externals) config.externals = [];
-    config.externals.push({
-      bufferutil: 'bufferutil',
-      'utf-8-validate': 'utf-8-validate',
-    });
-    return config;
-  },
 };
 
 module.exports = nextConfig;
