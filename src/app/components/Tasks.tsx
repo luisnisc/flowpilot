@@ -34,6 +34,7 @@ export default function Tasks() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +64,7 @@ export default function Tasks() {
 
   const fetchData = async (adminUser = false) => {
     try {
-      const [projectsRes, tasksRes] = await Promise.all([
+      const [projectsRes, tasksRes, usersRes] = await Promise.all([
         fetch("/api/projects", {
           method: "GET",
           headers: { "Content-Type": "application/json" },
@@ -72,6 +73,10 @@ export default function Tasks() {
           method: "GET",
           headers: { "Content-Type": "application/json" },
         }),
+        fetch("/api/users", {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        })
       ]);
 
       if (!projectsRes.ok) throw new Error("Failed to fetch projects");
@@ -79,6 +84,7 @@ export default function Tasks() {
 
       const projectsData = await projectsRes.json();
       const tasksData = await tasksRes.json();
+      const usersData = await usersRes.json();
 
       // Usar el parámetro adminUser pasado directamente, en lugar de isAdmin (que podría no estar actualizado)
       const userTasks = adminUser
@@ -89,6 +95,7 @@ export default function Tasks() {
 
       setProjects(projectsData);
       setTasks(userTasks);
+      setUsers(usersData);
       setLoading(false);
     } catch (err) {
       console.error("Error fetching data:", err);
@@ -339,7 +346,7 @@ export default function Tasks() {
                             <div className="flex-shrink-0 h-8 w-8 relative">
                               <img
                                 className="h-8 w-8 rounded-full bg-gray-200 object-cover border border-gray-200"
-                                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                src={users.filter((user) => user.email === task.assignedTo)[0]?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(
                                   task.assignedTo.split("@")[0]
                                 )}&background=random&color=fff&size=32`}
                                 alt={task.assignedTo.split("@")[0]}
