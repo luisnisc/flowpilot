@@ -35,18 +35,14 @@ export default function ProjectUsers({
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Función para obtener el nombre de usuario
   const getUserDisplayName = (user: string | User): string => {
     if (typeof user === "string") {
-      // Si es un correo electrónico, mostrar la primera parte
       return user.split("@")[0];
     } else {
-      // Si es un objeto de usuario, mostrar el nombre o el correo electrónico
       return user.name || user.email.split("@")[0];
     }
   };
 
-  // Función para obtener el correo electrónico
   const getUserEmail = (user: string | User): string => {
     if (typeof user === "string") {
       return user;
@@ -73,7 +69,11 @@ export default function ProjectUsers({
       }
 
       const data = await res.json();
-      setAvailableUsers(data);
+      const filteredUsers = data.filter(
+        (user: User) =>
+          user.email !== session?.user?.email && !users.includes(user.email)
+      );
+      setAvailableUsers(filteredUsers);
       setSelectedUsers([]);
     } catch (error) {
       console.error("Error fetching available users:", error);
@@ -174,7 +174,6 @@ export default function ProjectUsers({
     }
   };
 
-  // Función para verificar si un usuario es administrador
   const isUserAdmin = (userEmail: string): boolean => {
     const user = availableUsers.find((u) => u.email === userEmail);
     return user?.role === "admin";
@@ -385,16 +384,40 @@ export default function ProjectUsers({
 
             {/* Avatares apilados para efecto visual */}
             <div className="flex -space-x-2 overflow-hidden mt-3">
-              {users.slice(0, 5).map((user, index) => (
-                <img
-                  key={getUserEmail(user)}
-                  className={`inline-block h-8 w-8 rounded-full ring-2 ring-white`}
-                  src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+              {users.slice(0, 5).map((user, index) => {
+                let userImage = "";
+
+                if (typeof user === "string") {
+                  const availableUser = availableUsers.find(
+                    (u) => u.email === user
+                  );
+                  userImage = availableUser?.image || "";
+                } else {
+                  userImage = user.image || "";
+                }
+
+                const avatarUrl =
+                  userImage ||
+                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
                     getUserDisplayName(user)
-                  )}&background=random&color=fff&size=32`}
-                  alt={getUserDisplayName(user)}
-                />
-              ))}
+                  )}&background=random&color=fff&size=32`;
+
+                return (
+                  <img
+                    key={getUserEmail(user)}
+                    className="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover"
+                    src={avatarUrl}
+                    alt={getUserDisplayName(user)}
+                    onError={(e) => {
+                      (
+                        e.target as HTMLImageElement
+                      ).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                        getUserDisplayName(user)
+                      )}&background=random&color=fff&size=32`;
+                    }}
+                  />
+                );
+              })}
               {users.length > 5 && (
                 <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-300 ring-2 ring-white text-xs font-medium text-gray-800">
                   +{users.length - 5}
@@ -405,7 +428,6 @@ export default function ProjectUsers({
         )}
       </div>
 
-      {/* Modal para añadir usuarios */}
       {showAddUserModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">

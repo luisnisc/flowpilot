@@ -50,13 +50,6 @@ export default async function handler(
       ],
     });
 
-    // Verificar acceso
-    if (!project) {
-      return res
-        .status(403)
-        .json({ error: "No tienes acceso a este proyecto" });
-    }
-
     // Contar tareas por estado
     const taskStats = {
       pending: await db

@@ -270,7 +270,7 @@ export default function useProjectSync(
     newStatus: string,
     taskData: Task
   ): void => {
-    console.log("Actualizando tarea:", taskId, "a estado:", newStatus); // Log para debugging
+    console.log("Actualizando tarea:", taskId, "a estado:", newStatus);
 
     // Verificar que el estado sea válido
     if (!["pending", "in_progress", "review", "done"].includes(newStatus)) {
@@ -290,11 +290,11 @@ export default function useProjectSync(
     setColumns((prevColumns) => {
       const newColumns = JSON.parse(JSON.stringify(prevColumns)) as Columns;
 
-      // Mapeo de estado a nombre de columna (asegurarse de que sea exacto)
+      // Mapeo de estado a nombre de columna
       const statusToColumn: Record<string, keyof Columns> = {
         pending: "backlog",
         in_progress: "in_progress",
-        review: "review", // Verificar que coincida exactamente
+        review: "review",
         done: "done",
       };
 
@@ -320,24 +320,36 @@ export default function useProjectSync(
           projectId,
           task: {
             ...updatedTask,
-            id: taskId, // Asegúrate de que el ID se envía correctamente
+            id: taskId,
           },
         });
         console.log("Evento Socket.IO enviado para actualizar tarea", taskId);
       } catch (err) {
         console.error("Error emitiendo evento updateTask:", err);
+        // Si hay un error con el socket, intentamos la API
         updateTaskViaAPI(taskId, newStatus);
       }
     } else {
       console.log("Socket desconectado, usando API REST como fallback");
       updateTaskViaAPI(taskId, newStatus);
     }
+
+    // IMPORTANTE: Siempre intentar la actualización vía API como respaldo
+    // incluso si el socket está conectado
+    updateTaskViaAPI(taskId, newStatus);
   };
 
   // Actualización mediante API REST como fallback cuando el socket está desconectado
   const updateTaskViaAPI = async (taskId: string, newStatus: string) => {
     try {
-      console.log(`Intentando actualizar tarea ${taskId} vía API REST`);
+      console.log(
+        `[API] Intentando actualizar tarea ${taskId} a estado ${newStatus}`
+      );
+
+      // Registrar la URL y los datos enviados
+      console.log(`[API] URL: /api/tasks/${taskId}`);
+      console.log("[API] Payload:", { status: newStatus });
+
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
         headers: {
@@ -346,13 +358,31 @@ export default function useProjectSync(
         body: JSON.stringify({ status: newStatus }),
       });
 
-      if (!response.ok) {
-        console.error(`Error al actualizar tarea vía API: ${response.status}`);
-      } else {
-        console.log("Tarea actualizada vía API correctamente");
+      // Leer el texto de la respuesta antes de intentar parsear como JSON
+      const responseText = await response.text();
+      console.log(`[API] Respuesta (status ${response.status}):`, responseText);
+
+      // Intentar parsear como JSON si es posible
+      let responseData;
+      try {
+        if (responseText) {
+          responseData = JSON.parse(responseText);
+          console.log("[API] Datos de respuesta:", responseData);
+        }
+      } catch (e) {
+        console.warn("[API] La respuesta no es un JSON válido");
       }
+
+      if (!response.ok) {
+        console.error(`[API] Error ${response.status}: ${responseText}`);
+        return false;
+      }
+
+      console.log("✅ [API] Tarea actualizada correctamente");
+      return true;
     } catch (error) {
-      console.error("Error en petición API:", error);
+      console.error("[API] Error en petición:", error);
+      return false;
     }
   };
 
