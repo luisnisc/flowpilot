@@ -173,9 +173,9 @@ export default function SideBar() {
         <button
           title="Cerrar sesión"
           onClick={() => signOut()}
-          className="flex items-center justify-center px-4  text-red-500 rounded hover:bg-gray-600"
+          className="flex items-center justify-center px-2 py-2 text-red-500 rounded hover:bg-gray-600 cursor-pointer"
         >
-          <FiLogOut className="mr-2" size={18} />
+          <FiLogOut size={18} />
         </button>
       </div>
       {session?.user && (
