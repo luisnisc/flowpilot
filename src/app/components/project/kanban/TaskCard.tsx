@@ -88,7 +88,7 @@ export default function TaskCard({ task, index }: TaskCardProps) {
                   : "bg-green-100 text-green-800"
               }`}
             >
-              {task.priority}
+              {task.priority === "high" ? "Alta" : task.priority === "medium" ? "Media" : "Baja"}
             </span>
           </div>
           <p className="text-xs md:text-sm text-gray-600 line-clamp-2">
