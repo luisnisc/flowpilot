@@ -4,7 +4,6 @@ import authOptions from "../auth/[...nextauth]";
 import clientPromise from "../../../lib/mongodb";
 import { ObjectId } from "mongodb";
 
-// Definimos interfaces para tipar correctamente
 interface SessionUser {
   name?: string;
   email?: string;
@@ -65,7 +64,7 @@ export default async function handler(
     // Si no se encontró por ObjectId, intentar buscar como string usando query por campo personalizado
     if (!project) {
       project = await projectsCollection.findOne({
-        id: id, // Buscar por el campo 'id' en lugar de '_id'
+        _id: id as any, 
       });
       console.log("Búsqueda por string ID:", !!project);
     }

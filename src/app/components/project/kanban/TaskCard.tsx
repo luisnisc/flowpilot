@@ -1,6 +1,7 @@
 "use client";
 import { Draggable } from "@hello-pangea/dnd";
 import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
 
 interface TaskCardProps {
   task: {
@@ -17,11 +18,30 @@ interface TaskCardProps {
 
 export default function TaskCard({ task, index }: TaskCardProps) {
   const { data: session } = useSession();
-
-  // Determinar si el usuario puede arrastrar esta tarea
+  const [users, setUsers] = useState<any[]>([]);
   const isAdmin = session?.user?.role === "admin";
   const isAssignedToUser = task.assignedTo === session?.user?.email;
   const canDrag = isAdmin || isAssignedToUser;
+  const userAvatar = (email: string) => {
+    let avatar = users.find((user) => user.email === email)?.image;
+    return avatar
+  };
+
+  useEffect(() => {
+    fetch("/api/users", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setUsers(data);
+      })
+      .catch((error) => {
+        console.error("Error al obtener usuarios:", error);
+    })
+  }, [session]);
 
   return (
     <Draggable
@@ -41,11 +61,10 @@ export default function TaskCard({ task, index }: TaskCardProps) {
         >
           <div className="flex justify-between items-center mb-1 md:mb-2">
             <div className="flex items-center">
-              {/* Avatar del usuario asignado */}
               {task.assignedTo && (
                 <div className="flex-shrink-0 mr-2">
                   <img
-                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    src={userAvatar(task.assignedTo) || `https://ui-avatars.com/api/?name=${encodeURIComponent(
                       task.assignedToName || task.assignedTo
                     )}&background=random&color=fff&size=32`}
                     alt={`${task.assignedToName || task.assignedTo}`}
