@@ -12,7 +12,7 @@ export default function Chat({ projectId }: { projectId: string }) {
 
   // Usar nombre de usuario o email como fallback
   const userName = session?.user?.name || session?.user?.email || "Usuario";
-  const userEmail = session?.user?.email;
+  const userEmail = session?.user?.email || "";
 
   // Obtener chat con ID de proyecto
   const { messages, connected, sendMessage, isLoading } = useChat(projectId);

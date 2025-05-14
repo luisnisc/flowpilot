@@ -11,7 +11,19 @@ export const config = {
   },
 };
 
-export interface SocketServer extends NextApiRequest {
+// En lugar de extender NextApiRequest, creamos una interfaz independiente
+export interface NextApiRequestWithSocket
+  extends Omit<NextApiRequest, "socket"> {
+  socket: {
+    server: NetServer & {
+      io?: Server;
+    };
+  };
+}
+
+// Hacemos lo mismo para el response
+export interface NextApiResponseWithSocket
+  extends Omit<NextApiResponse, "socket"> {
   socket: {
     server: NetServer & {
       io?: Server;
@@ -42,7 +54,10 @@ interface TaskUpdateData {
 // Almacenar usuarios conectados por proyecto
 const connectedUsers: Record<string, Set<string>> = {};
 
-export default async function handler(req: NextApiRequest, res: any) {
+export default async function handler(
+  req: NextApiRequestWithSocket,
+  res: NextApiResponseWithSocket
+) {
   if (res.socket.server.io) {
     console.log("Socket ya inicializado");
     res.end();
@@ -231,8 +246,10 @@ export default async function handler(req: NextApiRequest, res: any) {
           connectedUsers[projectId] = new Set();
         }
 
-        // Añadir usuario al proyecto
-        connectedUsers[projectId].add(currentUserEmail);
+        // Añadir usuario al proyecto (solo si no es null)
+        if (currentUserEmail) {
+          connectedUsers[projectId].add(currentUserEmail);
+        }
 
         // Emitir lista actualizada a todos en el proyecto
         const usersInProject = Array.from(connectedUsers[projectId]);

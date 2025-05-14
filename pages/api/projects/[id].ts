@@ -4,13 +4,30 @@ import authOptions from "../auth/[...nextauth]";
 import clientPromise from "../../../lib/mongodb";
 import { ObjectId } from "mongodb";
 
+// Definimos interfaces para tipar correctamente
+interface SessionUser {
+  name?: string;
+  email?: string;
+  image?: string;
+  role?: string;
+}
+
+interface Session {
+  user?: SessionUser;
+  expires: string;
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
   try {
     // Verificar sesión
-    const session = await getServerSession(req, res, authOptions);
+    const session = (await getServerSession(
+      req,
+      res,
+      authOptions
+    )) as Session | null;
     if (!session) {
       return res.status(401).json({ error: "No autenticado" });
     }
@@ -45,10 +62,10 @@ export default async function handler(
       // No hacemos return aquí para permitir buscar como string
     }
 
-    // Si no se encontró por ObjectId, intentar buscar como string
+    // Si no se encontró por ObjectId, intentar buscar como string usando query por campo personalizado
     if (!project) {
       project = await projectsCollection.findOne({
-        _id: id,
+        id: id, // Buscar por el campo 'id' en lugar de '_id'
       });
       console.log("Búsqueda por string ID:", !!project);
     }
@@ -73,24 +90,33 @@ export default async function handler(
         // Solo se permite actualizar ciertos campos
         const updateData: any = {};
 
-        // Si se proporcionan usuarios para añadir
+        // Si se proporcionan usuarios para añadir o eliminar
         if (req.body.users && Array.isArray(req.body.users)) {
-          // Obtener usuarios actuales y añadir los nuevos sin duplicar
           const currentUsers = project.users || [];
-          const newUsers = req.body.users.filter(
-            (user: string) => !currentUsers.includes(user)
-          );
 
-          // Actualizar solo si hay nuevos usuarios para añadir
-          if (newUsers.length > 0) {
-            updateData.users = [...currentUsers, ...newUsers];
+          // Si la acción es remover usuarios
+          if (req.body.action === "remove") {
+            const updatedUsers = currentUsers.filter((user: any) => {
+              const userEmail = typeof user === "string" ? user : user.email;
+              return !req.body.users.includes(userEmail);
+            });
+            updateData.users = updatedUsers;
+          }
+          // Si la acción es añadir usuarios o no se especifica acción (comportamiento por defecto)
+          else {
+            const newUsers = req.body.users.filter(
+              (user: string) => !currentUsers.includes(user)
+            );
+
+            // Actualizar solo si hay nuevos usuarios para añadir
+            if (newUsers.length > 0) {
+              updateData.users = [...currentUsers, ...newUsers];
+            }
           }
         }
 
-        // En el caso PATCH del endpoint:
+        // Mantener compatibilidad con el método removeUser anterior
         if (req.body.removeUser && typeof req.body.removeUser === "string") {
-         
-
           // Obtener usuarios actuales y eliminar el usuario especificado
           const currentUsers = project.users || [];
           const updatedUsers = currentUsers.filter((user: any) => {
@@ -167,8 +193,6 @@ export default async function handler(
             error: "Se requiere un array de usuarios para añadir",
           });
         }
-
-      
 
         // Obtener la lista actual de usuarios del proyecto
         const existingUsers = project.users || [];

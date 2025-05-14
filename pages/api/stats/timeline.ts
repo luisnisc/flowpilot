@@ -4,12 +4,23 @@ import clientPromise from "../../../lib/mongodb";
 import { ObjectId } from "mongodb";
 import authOptions from "../auth/[...nextauth]";
 
+interface SessionUser {
+  name?: string;
+  email?: string;
+  image?: string;
+  role?: string;
+}
+interface Session {
+  user: SessionUser;
+  expires: string;
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
   try {
-    const session = await getServerSession(req, res, authOptions);
+    const session = await getServerSession(req, res, authOptions) as Session | null;
     if (!session) {
       return res.status(401).json({ error: "No autenticado" });
     }

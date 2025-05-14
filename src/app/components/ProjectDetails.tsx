@@ -78,7 +78,7 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
   const router = useRouter();
   const [initialColumns, setInitialColumns] =
     useState<ColumnData>(emptyColumns);
-  const [project, setProject] = useState<Project | null>(null);
+  const [project, setProject] = useState<Project | null>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
@@ -93,8 +93,8 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
   const userName = session?.user?.name;
   const { onlineUsers, isConnected: presenceConnected } = usePresence(
     id,
-    userEmail,
-    userName
+    userEmail || "",
+    userName || ""
   );
 
   // Estado para las pestañas
@@ -285,10 +285,10 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
           <KanbanBoard columns={columns} onDragEnd={onDragEnd} />
           <ProjectUsers
             projectId={id}
-            users={project.users || []}
+            users={project?.users || []}
             isAdmin={isAdmin}
             onlineUsers={onlineUsers}
-            userEmail={userEmail}
+            userEmail={userEmail || ""}
           />
           </div>
         )}

@@ -4,12 +4,31 @@ import clientPromise from "../../../lib/mongodb";
 import { ObjectId } from "mongodb";
 import authOptions from "../auth/[...nextauth]";
 
+// Definimos interfaces para tipar correctamente la sesión
+interface SessionUser {
+  name?: string;
+  email?: string;
+  image?: string;
+  role?: string;
+}
+
+interface Session {
+  user: SessionUser;
+  expires: string;
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
   try {
-    const session = await getServerSession(req, res, authOptions);
+    // Aplicamos el tipo de sesión que hemos definido
+    const session = (await getServerSession(
+      req,
+      res,
+      authOptions
+    )) as Session | null;
+
     if (!session) {
       return res.status(401).json({ error: "No autenticado" });
     }
@@ -22,18 +41,21 @@ export default async function handler(
     const client = await clientPromise;
     const db = client.db("app");
 
-    // No necesitamos convertir a ObjectId si tu projectId se almacena como string
-    // Si se almacena como ObjectId, necesitarás convertirlo
-
     // Comprobar si el usuario tiene acceso al proyecto
     const project = await db.collection("projects").findOne({
-      _id: new ObjectId(projectId), // Si tu _id es un ObjectId, usa new ObjectId(projectId)
+      _id: new ObjectId(projectId),
       $or: [
         { ownerId: session.user.email },
         { members: { $elemMatch: { email: session.user.email } } },
       ],
     });
 
+    // Verificar acceso
+    if (!project) {
+      return res
+        .status(403)
+        .json({ error: "No tienes acceso a este proyecto" });
+    }
 
     // Contar tareas por estado
     const taskStats = {
@@ -54,11 +76,9 @@ export default async function handler(
     res.status(200).json({ taskStats });
   } catch (error) {
     console.error("Error al obtener estadísticas de tareas:", error);
-    res
-      .status(500)
-      .json({
-        error: "Error al obtener estadísticas de tareas",
-        details: String(error),
-      });
+    res.status(500).json({
+      error: "Error al obtener estadísticas de tareas",
+      details: error instanceof Error ? error.message : String(error),
+    });
   }
 }
