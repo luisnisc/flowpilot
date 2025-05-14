@@ -4,7 +4,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import SideBar from "./SideBar";
-import { FiFolder, FiList, FiClock, FiCheckCircle, FiAlertCircle, FiArrowRight } from "react-icons/fi";
+import {
+  FiFolder,
+  FiList,
+  FiClock,
+  FiCheckCircle,
+  FiAlertCircle,
+  FiArrowRight,
+} from "react-icons/fi";
 
 interface Task {
   _id: string;
@@ -28,6 +35,14 @@ interface Project {
   tasks?: number;
 }
 
+interface User {
+  _id: string;
+  email: string;
+  name?: string;
+  image?: string;
+  role?: string;
+}
+
 export default function DashBoard() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -35,6 +50,7 @@ export default function DashBoard() {
   const [error, setError] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -53,19 +69,26 @@ export default function DashBoard() {
           method: "GET",
           headers: { "Content-Type": "application/json" },
         }),
+        fetch("/api/users", {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        }),
       ])
-        .then(async ([tasksRes, projectsRes]) => {
+        .then(async ([tasksRes, projectsRes, usersRes]) => {
           if (!tasksRes.ok) throw new Error("Error al obtener tareas");
           if (!projectsRes.ok) throw new Error("Error al obtener proyectos");
-          
+          if (!usersRes.ok) throw new Error("Error al obtener usuarios");
+
           const tasksData = await tasksRes.json();
           const projectsData = await projectsRes.json();
-          
-          return [tasksData, projectsData];
+          const usersData = await usersRes.json();
+
+          return [tasksData, projectsData, usersData];
         })
-        .then(([tasksData, projectsData]) => {
+        .then(([tasksData, projectsData, usersData]) => {
           setTasks(tasksData);
           setProjects(projectsData);
+          setUsers(usersData);
           setLoading(false);
         })
         .catch((err) => {
@@ -76,20 +99,36 @@ export default function DashBoard() {
     }
   }, [status, router, session]);
 
-  const userTasks = isAdmin ? tasks : tasks.filter(
-    (task) => 
-      task.assignedTo === session?.user?.email && 
-      task.status !== "done"
-  );
+  const userTasks = isAdmin
+    ? tasks
+    : tasks.filter(
+        (task) =>
+          task.assignedTo === session?.user?.email && task.status !== "done"
+      );
 
-  const activeProjects = isAdmin ? projects.filter(
-    (project) => project.status !== "completed"
-  ) : projects.filter(
-    (project) =>
-      project.status !== "completed" &&
-      (project.users?.includes(session?.user?.email || "") || 
-       project.users?.includes(session?.user?.name || ""))
-  );
+  const activeProjects = isAdmin
+    ? projects.filter((project) => project.status !== "completed")
+    : projects.filter(
+        (project) =>
+          project.status !== "completed" &&
+          (project.users?.includes(session?.user?.email || "") ||
+            project.users?.includes(session?.user?.name || ""))
+      );
+
+  const getUserAvatar = (email: string): string => {
+    const user = users.find((user) => user.email === email);
+    return (
+      user?.image ||
+      `https://ui-avatars.com/api/?name=${encodeURIComponent(
+        email
+      )}&background=random&color=fff&size=32`
+    );
+  };
+
+  const getUserName = (email: string): string => {
+    const user = users.find((user) => user.email === email);
+    return user?.name || email.split("@")[0];
+  };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -140,18 +179,20 @@ export default function DashBoard() {
     <div className="relative min-h-screen bg-gray-200">
       <SideBar />
       <main className="flex flex-col min-h-screen bg-gray-200 text-black px-4 pt-16 pb-6 md:p-6 lg:ml-[16.66667%]">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold">
             Bienvenido, {session?.user?.name || session?.user?.email}
           </h1>
         </div>
-        <div className="flex items-center justify-center h-[85vh] mt-15 md:mt-0">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-grow">
+          <div className="bg-white rounded-lg shadow-md overflow-hidden h-fit">
             <div className="p-4 bg-blue-600 text-white flex justify-between items-center">
               <div className="flex items-center">
                 <FiList className="w-5 h-5 mr-2" />
-                <h2 className="text-lg font-semibold">Tus tareas pendientes</h2>
+                <h2 className="text-lg font-semibold">
+                  {isAdmin ? "Tareas de los usuarios" : "Tus tareas pendientes"}
+                </h2>
               </div>
               <Link
                 href="/tasks"
@@ -160,7 +201,7 @@ export default function DashBoard() {
                 Ver todas <FiArrowRight className="ml-1" />
               </Link>
             </div>
-            
+
             <div className="p-4 max-h-[50vh] overflow-y-auto">
               {userTasks.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
@@ -171,18 +212,28 @@ export default function DashBoard() {
                   {userTasks.map((task) => (
                     <li key={task._id} className="py-3">
                       <div className="flex justify-between items-start">
-                        <div className="flex items-start">
-                          {getStatusIcon(task.status)}
-                          <div className="ml-2">
-                            <h3 className="font-medium">{task.title}</h3>
-                            <p className="text-sm text-gray-600 line-clamp-1">
-                              {task.description}
-                            </p>
-                            {task.project && (
-                              <span className="text-xs text-blue-600">
-                                {task.project.name}
-                              </span>
-                            )}
+                        <div className="flex items-center">
+                          {task.assignedTo && (
+                            <img
+                              src={getUserAvatar(task.assignedTo)}
+                              alt={getUserName(task.assignedTo)}
+                              title={getUserName(task.assignedTo)}
+                              className="w-8 h-8 rounded-full border-2 border-white shadow-sm mr-2"
+                            />
+                          )}
+                          <div className="flex items-start">
+                            {getStatusIcon(task.status)}
+                            <div className="ml-2">
+                              <h3 className="font-medium">{task.title}</h3>
+                              <p className="text-sm text-gray-600 line-clamp-1">
+                                {task.description}
+                              </p>
+                              {task.project && (
+                                <span className="text-xs text-blue-600">
+                                  {task.project.name}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <span
@@ -198,9 +249,9 @@ export default function DashBoard() {
                 </ul>
               )}
             </div>
-            
+
             <div className="p-3 bg-gray-50 border-t border-gray-200">
-              <Link 
+              <Link
                 href="/addTask"
                 className="block w-full py-2 bg-blue-100 text-blue-700 text-center rounded hover:bg-blue-200 transition-colors"
               >
@@ -209,7 +260,7 @@ export default function DashBoard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md overflow-hidden h-max">
+          <div className="bg-white rounded-lg shadow-md overflow-hidden h-fit">
             <div className="p-4 bg-green-600 text-white flex justify-between items-center">
               <div className="flex items-center">
                 <FiFolder className="w-5 h-5 mr-2" />
@@ -222,7 +273,7 @@ export default function DashBoard() {
                 Ver todos <FiArrowRight className="ml-1" />
               </Link>
             </div>
-            
+
             <div className="p-4 max-h-[60vh] overflow-y-auto">
               {activeProjects.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
@@ -231,8 +282,8 @@ export default function DashBoard() {
               ) : (
                 <ul className="space-y-3">
                   {activeProjects.map((project) => (
-                    <li 
-                      key={project._id} 
+                    <li
+                      key={project._id}
                       className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow"
                     >
                       <Link href={`/projects/${project._id}`}>
@@ -247,32 +298,9 @@ export default function DashBoard() {
                         </div>
                       </Link>
                     </li>
-                    
                   ))}
                 </ul>
               )}
-            </div>
-            
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-6 lg:hidden">
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <h2 className="text-lg font-semibold mb-4">Acciones rápidas</h2>
-            <div className="grid grid-cols-2 gap-3">
-              <Link
-                href="/tasks"
-                className="flex items-center justify-center bg-blue-100 text-blue-700 p-3 rounded hover:bg-blue-200 transition-colors"
-              >
-                <FiList className="w-5 h-5 mr-2" /> Ir a tareas
-              </Link>
-              <Link
-                href="/projects"
-                className="flex items-center justify-center bg-green-100 text-green-700 p-3 rounded hover:bg-green-200 transition-colors"
-              >
-                <FiFolder className="w-5 h-5 mr-2" /> Ir a proyectos
-              </Link>
             </div>
           </div>
         </div>
