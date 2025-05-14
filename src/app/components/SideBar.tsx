@@ -129,10 +129,6 @@ export default function SideBar() {
     return pathname?.includes(path) ? "bg-gray-700" : "";
   };
 
-  const handleLogout = () => {
-    signOut({ callbackUrl: "/login" });
-  };
-
   const mobileToggle = (
     <button
       onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -167,7 +163,7 @@ export default function SideBar() {
             </div>
           </div>
         ) : (
-          <span className="text-sm mb-2 text-center w-full">Bienvenido</span>
+          null
         )}
         <div className="text-center mb-2">
           {session?.user?.name || "Usuario"}
@@ -175,12 +171,11 @@ export default function SideBar() {
       
 
         <button
-          title="Configuración de usuario"
-          className="hover:cursor-pointer"
-          onClick={() => setShowModal(true)}
-          aria-label="Abrir configuración de usuario"
+          title="Cerrar sesión"
+          onClick={() => signOut()}
+          className="flex items-center justify-center px-4  text-red-500 rounded hover:bg-gray-600"
         >
-          <FiSettings size={20} className="text-white" />
+          <FiLogOut className="mr-2" size={18} />
         </button>
       </div>
       {session?.user && (
@@ -234,15 +229,7 @@ export default function SideBar() {
               <span>Tareas</span>
             </Link>
           </li>
-          <li className="md:hidden pt-4 mt-4 border-t border-gray-700 w-full">
-            <button
-              onClick={handleLogout}
-              className="flex items-center justify-center w-full px-4 py-3 text-red-300 hover:bg-gray-700 rounded"
-            >
-              <FiLogOut className="mr-2" size={18} />
-              <span>Cerrar sesión</span>
-            </button>
-          </li>
+          
         </ul>
       </nav>
     </>

@@ -96,22 +96,12 @@ export default function Projects() {
 
   return (
     <div className="relative">
-      <div className="absolute right-0 m-4">
-        <button
-          onClick={() =>
-            signOut({ callbackUrl: "http://localhost:3000/login" })
-          }
-          className="btn btn-primary"
-        >
-          Logout
-        </button>
-      </div>
       <SideBar />
       <main className="flex flex-col bg-gray-200 text-black md:ml-[16.66667%] h-max">
         <div className="flex flex-col h-screen bg-gray-200 text-black p-6">
           <h1 className="text-3xl font-bold mb-6 md:mt-0 mt-10">Proyectos</h1>
           {isAdmin && (
-            <Link href="/projects/create">
+            <Link href="/addProject">
               <button className="btn btn-primary mb-4">Crear Proyecto</button>
             </Link>
           )}
@@ -123,9 +113,7 @@ export default function Projects() {
                   href={`/projects/${project._id}`}
                   key={project._id}
                   passHref
-                  legacyBehavior
                 >
-                  <a>
                     <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
                       <h2 className="text-xl font-semibold mb-2">
                         {project.name}
@@ -147,7 +135,6 @@ export default function Projects() {
                         </span>
                       )}
                     </div>
-                  </a>
                 </Link>
               ))
             ) : (

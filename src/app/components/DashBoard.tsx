@@ -144,12 +144,6 @@ export default function DashBoard() {
           <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold">
             Bienvenido, {session?.user?.name || session?.user?.email}
           </h1>
-          <button
-            onClick={() => signOut({ callbackUrl: "/login" })}
-            className="px-3 py-1 md:px-4 md:py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm md:text-base"
-          >
-            Cerrar sesión
-          </button>
         </div>
         <div className="flex items-center justify-center h-[85vh] mt-15 md:mt-0">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -30,7 +30,7 @@ export default function ProjectUsers({
   const { data: session } = useSession();
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [availableUsers, setAvailableUsers] = useState<
-    Array<{ email: string; name: string }>
+    Array<{ email: string; name: string; role?: string; image?: string }>
   >([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -60,8 +60,7 @@ export default function ProjectUsers({
       .then((res) => res.json())
       .then((data) => {
         setAvailableUsers(data);
-      }
-      )
+      });
   }, [projectId]);
 
   const fetchAvailableUsers = async () => {
@@ -110,12 +109,12 @@ export default function ProjectUsers({
         title: "¡Éxito!",
         text: "Usuarios añadidos correctamente",
         confirmButtonColor: "#3B82F6",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          setShowAddUserModal(false);
+          window.location.reload();
+        }
       });
-
-      setShowAddUserModal(false);
-
-      // Recargar la página para ver los cambios
-      window.location.reload();
     } catch (error) {
       console.error("Error adding users to project:", error);
       Swal.fire({
@@ -125,6 +124,60 @@ export default function ProjectUsers({
         confirmButtonColor: "#3B82F6",
       });
     }
+  };
+
+  const handleRemoveUser = async (userEmail: string) => {
+    try {
+      const result = await Swal.fire({
+        title: "¿Estás seguro?",
+        text: `¿Quieres eliminar a ${userEmail} del proyecto?`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#3B82F6",
+        confirmButtonText: "Sí, eliminar",
+        cancelButtonText: "Cancelar",
+      });
+
+      if (!result.isConfirmed) return;
+
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          removeUser: userEmail,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Error al eliminar usuario");
+      }
+
+      Swal.fire({
+        icon: "success",
+        title: "¡Éxito!",
+        text: "Usuario eliminado correctamente",
+        confirmButtonColor: "#3B82F6",
+      }).then(() => {
+        window.location.reload();
+      });
+    } catch (error) {
+      console.error("Error removing user from project:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudo eliminar el usuario del proyecto",
+        confirmButtonColor: "#3B82F6",
+      });
+    }
+  };
+
+  // Función para verificar si un usuario es administrador
+  const isUserAdmin = (userEmail: string): boolean => {
+    const user = availableUsers.find((u) => u.email === userEmail);
+    return user?.role === "admin";
   };
 
   return (
@@ -163,12 +216,10 @@ export default function ProjectUsers({
         {users && users.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {users.map((user, index) => {
-              // Verificar el tipo de usuario y extraer los datos necesarios
               const username = getUserDisplayName(user);
               const email = getUserEmail(user).toLowerCase().trim();
               const isCurrentUser = email === userEmail?.toLowerCase().trim();
-
-              // Verificar si el usuario está en línea
+              const isUserAnAdmin = isUserAdmin(email);
               const isOnline = onlineUsers.includes(email);
 
               return (
@@ -178,12 +229,12 @@ export default function ProjectUsers({
                     isCurrentUser
                       ? "bg-blue-50 border-blue-200"
                       : "bg-gray-50 border-gray-200"
-                  } hover:shadow-md transition-all`}
+                  } hover:shadow-md transition-all relative`}
                 >
                   <div className="relative">
                     <img
                       src={
-                          availableUsers.find(u => u.email === email)?.image ||
+                        availableUsers.find((u) => u.email === email)?.image ||
                         `https://ui-avatars.com/api/?name=${encodeURIComponent(
                           username
                         )}&background=random&color=fff&size=32`
@@ -200,12 +251,17 @@ export default function ProjectUsers({
                       title={isOnline ? "En línea" : "Desconectado"}
                     ></span>
                   </div>
-                  <div className="ml-3">
+                  <div className="ml-3 flex-grow">
                     <div className="text-sm font-medium text-gray-900">
                       {username}
                       {isCurrentUser && (
                         <span className="ml-1.5 text-xs font-normal text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
                           Tú
+                        </span>
+                      )}
+                      {isUserAnAdmin && (
+                        <span className="ml-1.5 text-xs font-normal text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
+                          Admin
                         </span>
                       )}
                     </div>
@@ -218,6 +274,29 @@ export default function ProjectUsers({
                       )}
                     </div>
                   </div>
+
+                  {/* Botón de eliminar - solo visible para administradores y no para usuarios admin */}
+                  {isAdmin && !isUserAnAdmin && (
+                    <button
+                      onClick={() => handleRemoveUser(email)}
+                      className="text-red-500 hover:text-red-700 ml-auto cursor-pointer"
+                      title="Eliminar usuario del proyecto"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="1.5"
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               );
             })}
