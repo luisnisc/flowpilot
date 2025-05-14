@@ -74,7 +74,7 @@ Desarrollada con Next.js 15, MongoDB y Socket.IO, FlowPilot proporciona una expe
 - TypeScript para tipado estático
 - ESLint y Prettier para linting y formateo
 - Turbopack para desarrollo rápido
-- Vercel para despliegue y hosting
+- Render para despliegue y hosting
 
 ## 🏗️ Arquitectura
 
@@ -170,7 +170,7 @@ Socket.IO <--> Socket.IO Server
 
 ## 🌐 Demo
 
-Una versión demo está desplegada en: [https://flowpilot-demo.vercel.app](https://flowpilot-demo.vercel.app)
+Una versión demo está desplegada en: [https://flowpilot-8gjv.onrender.com](https://flowpilot-8gjv.onrender.com/)
 
 ### Credenciales Demo
 
