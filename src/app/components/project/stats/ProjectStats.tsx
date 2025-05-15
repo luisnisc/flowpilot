@@ -16,6 +16,10 @@ interface TimelineItem {
   date: string;
   completed: number;
   created: number;
+  inProgress: number;
+  inReview: number;
+  comments: number;
+  activity: number;
 }
 
 interface ProjectStatsProps {
@@ -32,6 +36,19 @@ export default function ProjectStats({ projectId }: ProjectStatsProps) {
 
   const [taskTimeline, setTaskTimeline] = useState<TimelineItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>([
+    "completed",
+    "created",
+  ]);
+
+  const availableMetrics = [
+    { id: "completed", name: "Tareas Completadas", color: "#10B981" },
+    { id: "created", name: "Tareas Creadas", color: "#F59E0B" },
+    { id: "inProgress", name: "En Progreso", color: "#3B82F6" },
+    { id: "inReview", name: "En Revisión", color: "#8B5CF6" },
+    { id: "comments", name: "Comentarios", color: "#EC4899" },
+    { id: "activity", name: "Actividad Total", color: "#6D28D9" },
+  ];
 
   useEffect(() => {
     const loadStatsData = async () => {
@@ -76,6 +93,10 @@ export default function ProjectStats({ projectId }: ProjectStatsProps) {
               date: `05-${i + 1}`,
               created: Math.floor(Math.random() * 3),
               completed: Math.floor(Math.random() * 2),
+              inProgress: Math.floor(Math.random() * 2),
+              inReview: Math.floor(Math.random() * 1),
+              comments: Math.floor(Math.random() * 2),
+              activity: Math.floor(Math.random() * 5 + 2),
             }))
           );
         }
@@ -93,6 +114,10 @@ export default function ProjectStats({ projectId }: ProjectStatsProps) {
             date: `05-${i + 1}`,
             created: Math.floor(Math.random() * 3),
             completed: Math.floor(Math.random() * 2),
+            inProgress: Math.floor(Math.random() * 2),
+            inReview: Math.floor(Math.random() * 1),
+            comments: Math.floor(Math.random() * 2),
+            activity: Math.floor(Math.random() * 5 + 2),
           }))
         );
       } finally {
@@ -102,6 +127,19 @@ export default function ProjectStats({ projectId }: ProjectStatsProps) {
 
     loadStatsData();
   }, [projectId]);
+
+  // Maneja el cambio en las métricas seleccionadas
+  const handleMetricToggle = (metricId: string) => {
+    setSelectedMetrics((prev) => {
+      if (prev.includes(metricId)) {
+        // Evitar que se deseleccionen todas las métricas
+        if (prev.length === 1) return prev;
+        return prev.filter((m) => m !== metricId);
+      } else {
+        return [...prev, metricId];
+      }
+    });
+  };
 
   // Opciones para el gráfico circular de estado de tareas
   const taskStatusOptions = {
@@ -164,14 +202,33 @@ export default function ProjectStats({ projectId }: ProjectStatsProps) {
       zoom: {
         enabled: true,
       },
+      toolbar: {
+        show: true,
+        tools: {
+          download: true,
+          selection: true,
+          zoom: true,
+          zoomin: true,
+          zoomout: true,
+          pan: true,
+        },
+      },
       fontFamily: "Inter, sans-serif",
+      animations: {
+        enabled: true,
+        easing: "easeinout",
+        speed: 800,
+      },
     },
     dataLabels: {
       enabled: false,
     },
     stroke: {
       curve: "smooth" as const,
-      width: [3, 3],
+      width: Array(selectedMetrics.length).fill(3),
+      dashArray: selectedMetrics.includes("activity")
+        ? selectedMetrics.map((m) => (m === "activity" ? 5 : 0))
+        : Array(selectedMetrics.length).fill(0),
     },
     title: {
       text: "Evolución de Tareas",
@@ -194,23 +251,45 @@ export default function ProjectStats({ projectId }: ProjectStatsProps) {
       title: {
         text: "Número de Tareas",
       },
+      min: 0,
+      max: 10,
+      tickAmount: 5,
+      forceNiceScale: false,
+      labels: {
+        formatter: (value: number) => Math.floor(value).toString(),
+      },
     },
     legend: {
       position: "top" as const,
     },
-    colors: ["#3B82F6", "#F59E0B"],
+    colors: selectedMetrics.map(
+      (id) => availableMetrics.find((m) => m.id === id)?.color || "#000"
+    ),
+    tooltip: {
+      shared: true,
+      intersect: false,
+    },
+    markers: {
+      size: 5,
+      hover: {
+        sizeOffset: 3,
+      },
+    },
+    theme: {
+      palette: "palette1",
+    },
   };
 
-  const timelineSeries = [
-    {
-      name: "Tareas Completadas",
-      data: taskTimeline.map((item) => item.completed),
-    },
-    {
-      name: "Tareas Creadas",
-      data: taskTimeline.map((item) => item.created),
-    },
-  ];
+  // Generar series dinámicamente basado en métricas seleccionadas
+  const timelineSeries = selectedMetrics.map((metricId) => {
+    const metric = availableMetrics.find((m) => m.id === metricId);
+    return {
+      name: metric?.name || metricId,
+      data: taskTimeline.map(
+        (item) => item[metricId as keyof TimelineItem] as number
+      ),
+    };
+  });
 
   // Gráfico de progreso del proyecto (medidor)
   const totalTasks =
@@ -327,13 +406,44 @@ export default function ProjectStats({ projectId }: ProjectStatsProps) {
 
         {/* Gráfico de línea de tareas a lo largo del tiempo */}
         <div className="bg-gray-100 p-4 rounded-lg shadow-sm md:col-span-2">
-          <h3 className="text-lg font-semibold mb-4">Evolución Temporal</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">Evolución Temporal</h3>
+            <div className="flex flex-wrap gap-2">
+              {availableMetrics.map((metric) => (
+                <button
+                  key={metric.id}
+                  onClick={() => handleMetricToggle(metric.id)}
+                  className={`px-2 py-1 text-xs rounded-full transition-all ${
+                    selectedMetrics.includes(metric.id)
+                      ? "bg-gray-800 text-white"
+                      : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                  }`}
+                >
+                  <span className="flex items-center">
+                    <span
+                      className="w-2 h-2 rounded-full mr-1"
+                      style={{ backgroundColor: metric.color }}
+                    ></span>
+                    {metric.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
           <Chart
             options={timelineOptions}
             series={timelineSeries}
             type="line"
             height={350}
           />
+
+          <div className="mt-4 bg-blue-50 p-3 rounded-lg text-sm text-blue-800 border border-blue-100">
+            <p className="font-medium">💡 Consejo:</p>
+            <p>
+              Selecciona las métricas que quieres ver en el gráfico haciendo
+              clic en los botones de arriba.
+            </p>
+          </div>
         </div>
       </div>
     </div>

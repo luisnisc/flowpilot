@@ -141,16 +141,17 @@ export default function SideBar() {
 
   const sidebarContent = (
     <>
+    <Link href="/dashboard" className="w-full mb-4 md:mb-6">
       <div className="flex justify-center w-full mb-6 md:mb-0">
-        <Image
-          src="/logoFlowPilot.png"
-          alt="logoFlowPilot"
-          width={150}
-          height={150}
-          className="md:mt-[-5em] w-auto h-auto"
-        />
+          <Image
+            src="/logoFlowPilot.png"
+            alt="logoFlowPilot"
+            width={150}
+            height={150}
+            className="md:mt-[-5em] w-auto h-auto"
+          />
       </div>
-
+      </Link>
       <div className="mb-4 md:mt-[-4em] flex flex-row items-center w-full text-center gap-8 justify-center mt-4">
         {session?.user?.image ? (
           <div className="avatar mb-2">
@@ -162,13 +163,10 @@ export default function SideBar() {
               />
             </div>
           </div>
-        ) : (
-          null
-        )}
+        ) : null}
         <div className="text-center mb-2">
           {session?.user?.name || "Usuario"}
         </div>
-      
 
         <button
           title="Cerrar sesión"
@@ -179,15 +177,13 @@ export default function SideBar() {
         </button>
       </div>
       {session?.user && (
-          <div className="w-full px-3 mt-2 mb-4">
-            <div className="bg-gray-700 rounded-md p-2">
-              <div className="text-xs text-gray-300 mb-1">
-                Tareas completadas
-              </div>
-              <UserStatsWidget email={session.user.email || ""} />
-            </div>
+        <div className="w-full px-3 mt-2 mb-4">
+          <div className="bg-gray-700 rounded-md p-2">
+            <div className="text-xs text-gray-300 mb-1">Tareas completadas</div>
+            <UserStatsWidget email={session.user.email || ""} />
           </div>
-        )}
+        </div>
+      )}
 
       <div className="h-0.25 w-full bg-white my-4 md:mb-6"></div>
 
@@ -229,7 +225,6 @@ export default function SideBar() {
               <span>Tareas</span>
             </Link>
           </li>
-          
         </ul>
       </nav>
     </>
