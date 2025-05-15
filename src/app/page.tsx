@@ -1,11 +1,12 @@
 "use client";
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import {
   motion,
   useScroll,
   useTransform,
   useSpring,
   useInView,
+  AnimatePresence,
 } from "framer-motion";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
@@ -36,27 +37,58 @@ const AnimatedSection = ({
   );
 };
 
-// Componente para las tarjetas de características
+// También modificamos el componente FeatureCard para transiciones más suaves
 const FeatureCard = ({
   icon,
   title,
   description,
   delay,
+  isActive = false,
 }: {
   icon: React.ReactNode;
   title: string;
   description: string;
   delay?: number;
+  isActive?: boolean;
 }) => {
   return (
-    <AnimatedSection
-      delay={delay}
-      className="bg-white rounded-xl shadow-xl p-6 transform hover:scale-105 transition-transform duration-300"
+    <motion.div
+      className={`bg-white rounded-xl shadow-lg p-6 transform transition-all duration-700 h-full relative ${
+        isActive 
+          ? "ring-1 ring-blue-300 shadow-xl" 
+          : "hover:ring-1 hover:ring-blue-200 shadow-md"
+      }`}
+      animate={{ 
+        y: isActive ? -3 : 0, // Movimiento sutil hacia arriba cuando está activo
+      }}
+      transition={{ 
+        duration: 0.7,
+        ease: [0.22, 1, 0.36, 1] // Curva bezier suave para efecto de trazo
+      }}
+      layout
     >
-      <div className="text-blue-600 mb-4 text-4xl">{icon}</div>
-      <h3 className="text-xl font-bold mb-2 text-blue-500">{title}</h3>
-      <p className="text-gray-600">{description}</p>
-    </AnimatedSection>
+      <div className={`mb-3 ${isActive ? 'text-blue-600' : 'text-blue-400'} transition-colors duration-700`}>
+        <div className="w-8 h-8">
+          {icon}
+        </div>
+      </div>
+      <h3 className={`text-lg font-bold mb-2 ${
+        isActive ? 'text-blue-600' : 'text-blue-500'
+      } transition-colors duration-700`}>{title}</h3>
+      <p className={`${isActive ? 'text-gray-700' : 'text-gray-500'} text-sm transition-colors duration-700`}>
+        {description}
+      </p>
+      
+      {/* Indicador sutil de tarjeta activa */}
+      <motion.div 
+        className="absolute -bottom-0.5 left-0 right-0 mx-auto h-0.5 rounded-full bg-blue-500/60"
+        animate={{ 
+          width: isActive ? "50%" : "0%",
+          opacity: isActive ? 1 : 0
+        }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }} // Curva suave para efecto de trazo
+      />
+    </motion.div>
   );
 };
 
@@ -114,6 +146,294 @@ const ProgressTracker = () => {
   );
 };
 
+// Modificaciones al componente FeaturesCarousel para un movimiento más suave
+
+const FeaturesCarousel = ({ features } : {features: any}) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [direction, setDirection] = useState(0);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const carouselRef = useRef(null);
+  const [viewportWidth, setViewportWidth] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  // Determine how many items to show based on screen size
+  const getItemsToShow = useCallback(() => {
+    if (viewportWidth >= 1280) return 5;
+    if (viewportWidth >= 1024) return 3;
+    if (viewportWidth >= 768) return 3;
+    if (viewportWidth >= 640) return 1;
+    return 1;
+  }, [viewportWidth]);
+
+  const itemsToShow = getItemsToShow();
+
+  // Update viewport size on mount and resize
+  useEffect(() => {
+    const handleResize = () => {
+      setViewportWidth(window.innerWidth);
+    };
+
+    handleResize(); // Initial call
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Auto avance del carrusel con transición más suave
+  useEffect(() => {
+    if (!isAutoPlaying || isPaused || isTransitioning) return;
+
+    const timer = setInterval(() => {
+      nextSlide();
+    }, 5000); // Tiempo ligeramente más largo para apreciar cada tarjeta
+
+    return () => clearInterval(timer);
+  }, [currentIndex, isAutoPlaying, isPaused, isTransitioning]);
+
+  // Función mejorada para transición más suave
+  const nextSlide = () => {
+    if (isTransitioning) return;
+
+    setIsTransitioning(true);
+    setDirection(1);
+
+    // Usamos setTimeout para crear un pequeño retraso visual
+    setTimeout(() => {
+      setCurrentIndex((prevIndex) => (prevIndex + 1) % features.length);
+
+      // Esperar a que termine la animación antes de permitir otra transición
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, 700); // Ajustar según la duración de la transición
+    }, 50);
+  };
+
+  // Función mejorada para transición más suave
+  const prevSlide = () => {
+    if (isTransitioning) return;
+
+    setIsTransitioning(true);
+    setDirection(-1);
+
+    setTimeout(() => {
+      setCurrentIndex((prevIndex) =>
+        prevIndex === 0 ? features.length - 1 : prevIndex - 1
+      );
+
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, 700);
+    }, 50);
+  };
+
+  const handleTouchStart = (e: any) => {
+    setTouchStart(e.targetTouches[0].clientX);
+    setIsPaused(true);
+  };
+
+  const handleTouchMove = (e: any) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    setIsPaused(false);
+    if (isTransitioning) return;
+
+    if (touchStart - touchEnd > 75) {
+      // Deslizar a la izquierda
+      nextSlide();
+    }
+
+    if (touchStart - touchEnd < -75) {
+      // Deslizar a la derecha
+      prevSlide();
+    }
+  };
+
+  const goToSlide = (index: number) => {
+    if (isTransitioning || index === currentIndex) return;
+
+    setIsTransitioning(true);
+    setDirection(index > currentIndex ? 1 : -1);
+
+    setTimeout(() => {
+      setCurrentIndex(index);
+
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, 700);
+    }, 50);
+  };
+
+  // Calcular qué elementos son visibles con mayor sutileza
+  const getVisibleFeatures = useCallback(() => {
+    let visibleItems = [];
+    // Cantidad de elementos antes y después del elemento activo
+    const itemsOnEachSide = Math.floor(itemsToShow / 2);
+
+    for (let i = -itemsOnEachSide; i <= itemsOnEachSide; i++) {
+      let index = currentIndex + i;
+
+      // Manejo de desbordamiento circular
+      if (index < 0) index = features.length + index;
+      if (index >= features.length) index = index % features.length;
+
+      visibleItems.push({
+        feature: features[index],
+        index,
+        isActive: i === 0,
+        // Calcular la distancia desde el elemento activo para escalado proporcional
+        distance: Math.abs(i),
+      });
+    }
+
+    return visibleItems;
+  }, [currentIndex, features, itemsToShow]);
+
+  // Dots indicator con transición más suave
+  const renderDots = () => {
+    return (
+      <div className="flex justify-center space-x-2 mt-8">
+        {features.map((_ : string, index: number) => (
+          <motion.button
+            key={`dot-${index}`}
+            whileHover={{ scale: 1.2 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => goToSlide(index)}
+            className="relative h-2 rounded-full transition-all duration-700 ease-in-out"
+            style={{
+              width: index === currentIndex ? 20 : 8,
+              backgroundColor: index === currentIndex ? "#2563eb" : "#93c5fd",
+            }}
+            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }} // Curva bezier para trazo suave
+          >
+            <motion.div
+              className="absolute inset-0 bg-blue-400 rounded-full opacity-0"
+              animate={{ opacity: index === currentIndex ? [0, 0.2, 0] : 0 }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            />
+          </motion.button>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div className="relative py-12 px-4 overflow-hidden">
+      {/* Control izquierdo con efectos más suaves */}
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/80 backdrop-blur-sm w-10 h-10 rounded-full shadow-lg flex items-center justify-center text-blue-600 hover:bg-blue-600 hover:text-white transition-all duration-500"
+        onClick={prevSlide}
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+        disabled={isTransitioning}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-6 w-6"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
+      </motion.button>
+
+      {/* Contenedor de las tarjetas con transiciones más suaves */}
+      <div
+        ref={carouselRef}
+        className="" // Asegura que el contenido no desborde
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <motion.div
+          className="flex items-center justify-center"
+          initial={false}
+        >
+          <div className="flex gap-4 md:gap-6 px-4 justify-center items-center">
+            {getVisibleFeatures().map(
+              ({ feature, index, isActive, distance }) => (
+                <motion.div
+                  key={`feature-${index}`}
+                  className={`flex-shrink-0 w-56 sm:w-64 md:w-72 transition-all`}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{
+                    // Mayor contraste entre la tarjeta activa y las inactivas
+                    opacity: isActive ? 1 : 0.6 - distance * 0.1,
+                    scale: isActive ? 1 : 0.88 - distance * 0.03,
+                    filter: isActive
+                      ? "blur(0px)"
+                      : `blur(${distance * 0.7}px)`,
+                    // Movimiento horizontal para efecto de trazo
+                    x: direction * (isActive ? 0 : distance * 5),
+                  }}
+                  transition={{
+                    duration: 0.9, // Transición más lenta para un movimiento más suave
+                    ease: [0.25, 0.1, 0.25, 1], // Curva ease-out más suave
+                    opacity: { duration: 1.2 },
+                    scale: { duration: 0.9 },
+                    filter: { duration: 1 },
+                  }}
+                  onMouseEnter={() => setIsPaused(true)}
+                  onMouseLeave={() => setIsPaused(false)}
+                >
+                  <FeatureCard
+                    icon={feature.icon}
+                    title={feature.title}
+                    description={feature.description}
+                    isActive={isActive}
+                  />
+                </motion.div>
+              )
+            )}
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Control derecho */}
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/80 backdrop-blur-sm w-10 h-10 rounded-full shadow-lg flex items-center justify-center text-blue-600 hover:bg-blue-600 hover:text-white transition-all duration-500"
+        onClick={nextSlide}
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+        disabled={isTransitioning}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-6 w-6"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 5l7 7-7 7"
+          />
+        </svg>
+      </motion.button>
+
+      {/* Indicadores de posición con transición más suave */}
+      {renderDots()}
+
+    
+    </div>
+  );
+};
+
 export default function Home() {
   const [isScrolled, setIsScrolled] = useState(false);
   const pathname = usePathname();
@@ -149,7 +469,21 @@ export default function Home() {
               className="text-blue-600 mr-2"
               whileHover={{ rotate: 360 }}
               transition={{ duration: 0.5 }}
-            ></motion.div>
+            >
+              <svg
+                width="34"
+                height="34"
+                viewBox="0 0 500 500"
+                xmlns="http://www.w3.org/2000/svg"
+                className="fill-current"
+              >
+                {/* Cuerpo principal de FlowPilot (estilizado como "F") */}
+                <path d="M200 134c4.6 0 9.2-.1 13.8-.2 6.4 0 10.8.6 15.9 4.7 1.9 2.3 1.8 3.9 1.8 6.8a97 97 0 0 1-.2 9.5c.1 4.8 0 9.5.1 14.3 0 8.3 0 16.5-.2 24.8-2.1 8.2-2.1 8.2-4.2 12-5.5 4.5-9.8 5.4-16.7 5.1-3.6-.1-7.2-.3-10.8-.4.1 1.2.1 2.4.2 3.7.3 7.9.5 15.8.8 23.7.1 3.9.2 7.7.4 11.6-.1 1.9-.1 1.9-1.1 4.9h22c3.3 0 6.7 0 10.2 0 3.9 0 7.8-.1 11.8-.1h3.7c7 0 7 0 13-3.1a31 31 0 0 0 7.3-7c1.9-2.3 3.8-4.6 5.6-6.9 5-1.5 7.3-1.1 10.7 2.2 1.4 1.9 1.4 1.9 1.4 5.9h-2c-.4.9-.4.9-.8 1.7-4.4 8.1-12.4 15-20.4 19.5-2.9.8-2.9.8-12.9.8v34c4.6 0 9.2 0 13.9 0 4.8 1.4 7.4 2.7 10 7a70 70 0 0 1 .6 21c.1 6.7.1 13.4.2 20.1.1 7.6.1 15.2-.1 22.8-.2 6-1.1 9.5-5.2 13.9-4.6 3.2-10.8 2.4-16.2 2.4h-2a290 290 0 0 1-26.3.1H247.4c-5.9 0-11.4-.4-16.5-3.8-2.3-3.5-2.4-6.2-2.6-10.2v-21.4c-.1-5.3-.1-10.6-.2-15.9-.1-1.1-.1-1.1-.1-2.2.3-8.2.3-8.2 2.9-11.8 7.1-6 13.4-4.4 22.8-4.4v-34h-84v33c5 .3 9.9.7 15 1 4.6 1.3 6.3 2.2 9.4 5.8 4.3 8.4 2.8 18.9 2.6 28a192 192 0 0 1-.3 24.6c-.1.9-.1.9-.1 1.9-.1 5.7-1.2 9-5.2 13.1-2.3 1.8-3.7 2.2-6.6 2.3-2.5.1-5 .1-7.5.1h-2.7a315 315 0 0 1-28.9.1h-2.6c-6.3 0-11.5-.6-17-4.1-3.2-4.7-2.8-9.2-2.7-14.8v-4.6a1082 1082 0 0 0 0-18.2c0-5 0-10 0-15v-2.9c.1-7.6.1-7.6 2.5-11.5 2.3-2 3.9-2.9 6.8-3.7.8-.2 1.6-.5 2.4-.7 2.6-.4 4.9-.5 7.6-.5h2.4c.9 0 .9 0 1.9.1a481 481 0 0 1-.5-23.6c-.1-3.9-.1-7.9-.1-11.8-.1-1.8-.1-1.8-.2-3.9 0-4.1.4-6.9 1.8-10.7 4.2-3.8 8.3-3.3 13.8-3.3h3.5a399 399 0 0 0 24.2-.9c.3-13.9.7-27.7 1-42h-19c-5 0-5 0-7-3a127 127 0 0 1-.3-13c0-3.8 0-3.8-.1-5.7 0-5.1-.1-10.2-.1-15.3 0-7.8-.1-15.5-.2-23.3 0-2.5-.1-4.9-.1-7.4l-.1-1.9c0-9 0-9 3-12 3.5-2.4 5.2-3 9.3-2.9z" />
+
+                {/* Avión */}
+                <path d="M377 147c1 .5 1 .5 2 1 2 5.9 0 10.9-1.8 16.6a148 148 0 0 1-5.2 26l-3.5 14.4c-2.4 10-5 20-7.8 29.9-.3.8-.5 1.7-.8 2.5-1.3 4.5-2.7 8.1-6.2 11.5-4.4.2-7.1-.8-10.4-3.4-.8-.8-1.7-1.7-2.6-2.6v-2l-1.8-.8c-2.6-1.4-4.8-3-7-4.7l-2.4-1.8c-.6-.5-1.2-1.1-1.8-1.7v-2l-1.7-.7c-2.9-1.6-5.2-3.4-7.6-5.6-.9-.8-1.8-1.5-2.7-2.3-2-2.4-2-2.4-2.1-4.8 1.6-3.8 4.1-6.5 6.8-9.5l1.6-1.8c1-1.2 2.1-2.4 3.2-3.5 4.3-4.8 8.4-9.7 12.5-14.7l1.1-1.5h-1c-.6.6-1.3 1.2-1.9 1.8a35 35 0 0 1-5.5 5.2c-2.2 2-2.2 2-4.2 2v2c-1.7 1.6-3.5 3.1-5.4 4.6-1 .8-2 1.7-3 2.5-2.6 1.9-2.6 1.9-4.6 1.9v2c-5.5 5-5.5 5-8 5v2l-3 2c-2.6-.9-4.7-1.8-7.1-3l-2-1c-1.3-.7-2.7-1.3-4-2-1.8-.9-3.6-1.8-5.5-2.7-9.3-4.5-9.3-4.5-12.5-8.3-.3-3.8-.3-3.8 0-7 6.7-3.5 13.5-6.6 20.6-9.4.9-.4 1.9-.8 2.9-1.2 6.6-2.7 13.3-5.1 20-7.4 5-1.7 9.8-3.7 14.6-6 8.7-3.9 17.5-7.7 26.5-11 3.1-1.1 6.2-2.3 9.2-3.7 4.2-1.7 6.8-1.6 11.3-1.3z" />
+              </svg>
+            </motion.div>
             <span
               className={`font-bold text-xl ${
                 isScrolled ? "text-blue-600" : "text-white"
@@ -260,7 +594,7 @@ export default function Home() {
           transition={{ duration: 1.5, repeat: Infinity }}
         >
           <svg
-            className="w-10 h-10 text-white/50"
+            className="w-10 h-10 text-white"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -293,133 +627,130 @@ export default function Home() {
             </AnimatedSection>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <FeatureCard
-              icon={
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                  />
-                </svg>
-              }
-              title="Tableros Kanban"
-              description="Visualiza el flujo de trabajo de tu equipo con tableros Kanban personalizables y de fácil uso."
-              delay={0.1}
-            />
-
-            <FeatureCard
-              icon={
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              }
-              title="Seguimiento en tiempo real"
-              description="Mantente al día con actualizaciones instantáneas sobre el progreso de tus proyectos y tareas."
-              delay={0.2}
-            />
-
-            <FeatureCard
-              icon={
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                  />
-                </svg>
-              }
-              title="Gestión de equipos"
-              description="Asigna tareas, colabora en proyectos y coordina a tu equipo desde un solo lugar."
-              delay={0.3}
-            />
-
-            <FeatureCard
-              icon={
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                  />
-                </svg>
-              }
-              title="Análisis y estadísticas"
-              description="Obtén información valiosa sobre el rendimiento del equipo y el progreso de los proyectos."
-              delay={0.4}
-            />
-
-            <FeatureCard
-              icon={
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                  />
-                </svg>
-              }
-              title="Notificaciones"
-              description="Mantente informado con alertas y recordatorios personalizados sobre fechas de entrega y actualizaciones."
-              delay={0.5}
-            />
-
-            <FeatureCard
-              icon={
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
-                  />
-                </svg>
-              }
-              title="Personalización"
-              description="Adapta la plataforma a las necesidades de tu equipo con flujos de trabajo personalizados."
-              delay={0.6}
-            />
-          </div>
+          <FeaturesCarousel
+            features={[
+              {
+                icon: (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                    />
+                  </svg>
+                ),
+                title: "Tableros Kanban",
+                description:
+                  "Visualiza el flujo de trabajo de tu equipo con tableros Kanban personalizables y de fácil uso.",
+              },
+              {
+                icon: (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                ),
+                title: "Seguimiento en tiempo real",
+                description:
+                  "Mantente al día con actualizaciones instantáneas sobre el progreso de tus proyectos y tareas.",
+              },
+              {
+                icon: (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                    />
+                  </svg>
+                ),
+                title: "Gestión de equipos",
+                description:
+                  "Asigna tareas, colabora en proyectos y coordina a tu equipo desde un solo lugar.",
+              },
+              {
+                icon: (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                    />
+                  </svg>
+                ),
+                title: "Análisis y estadísticas",
+                description:
+                  "Obtén información valiosa sobre el rendimiento del equipo y el progreso de los proyectos.",
+              },
+              {
+                icon: (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                    />
+                  </svg>
+                ),
+                title: "Notificaciones",
+                description:
+                  "Mantente informado con alertas y recordatorios personalizados sobre fechas de entrega y actualizaciones.",
+              },
+              {
+                icon: (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
+                    />
+                  </svg>
+                ),
+                title: "Personalización",
+                description:
+                  "Adapta la plataforma a las necesidades de tu equipo con flujos de trabajo personalizados.",
+              },
+            ]}
+          />
         </div>
       </section>
 
@@ -431,10 +762,6 @@ export default function Home() {
               <h2 className="text-3xl sm:text-4xl font-bold mb-4">
                 Explora FlowPilot en acción
               </h2>
-              <p className="text-gray-600 max-w-2xl mx-auto">
-                Visualiza cómo FlowPilot puede transformar la gestión de tus
-                proyectos con estas capturas de pantalla.
-              </p>
             </AnimatedSection>
           </div>
 
