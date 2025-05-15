@@ -3,6 +3,7 @@ import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import SideBar from "./SideBar";
+import Swal from "sweetalert2";
 import Link from "next/link";
 import {
   FaEdit,
@@ -13,6 +14,15 @@ import {
   FaTimes,
   FaSave,
 } from "react-icons/fa";
+
+// Actualizar la interfaz de Usuario para tipado correcto
+interface User {
+  _id?: string;
+  email: string;
+  name?: string;
+  image?: string;
+  role?: string;
+}
 
 interface Task {
   _id: string;
@@ -34,7 +44,7 @@ export default function Tasks() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +72,12 @@ export default function Tasks() {
     }
   }, [status, router, session]);
 
+  useEffect(() => {
+    if (session?.user) {
+      setIsAdmin(session.user.role === "admin");
+    }
+  }, [session]);
+
   const fetchData = async (adminUser = false) => {
     try {
       const [projectsRes, tasksRes, usersRes] = await Promise.all([
@@ -76,7 +92,7 @@ export default function Tasks() {
         fetch("/api/users", {
           method: "GET",
           headers: { "Content-Type": "application/json" },
-        })
+        }),
       ]);
 
       if (!projectsRes.ok) throw new Error("Failed to fetch projects");
@@ -101,6 +117,21 @@ export default function Tasks() {
       console.error("Error fetching data:", err);
       setError("Error al cargar los datos");
       setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch("/api/users");
+      if (res.ok) {
+        const data = await res.json();
+        console.log("Usuarios obtenidos:", data); // Para depuración
+        setUsers(data);
+      } else {
+        console.error("Error fetching users:", await res.text());
+      }
+    } catch (err) {
+      console.error("Error fetching users:", err);
     }
   };
 
@@ -137,9 +168,16 @@ export default function Tasks() {
         throw new Error("Failed to delete task");
       }
 
-      setTasks(tasks.filter((task) => task._id !== taskToDelete));
-      setShowDeleteModal(false);
-      setTaskToDelete(null);
+      Swal.fire({
+        title: "Tarea eliminada",
+        text: "La tarea ha sido eliminada correctamente.",
+        icon: "success",
+        confirmButtonText: "Aceptar",
+      }).then(() => {
+        setTasks(tasks.filter((task) => task._id !== taskToDelete));
+        setShowDeleteModal(false);
+        setTaskToDelete(null);
+      });
     } catch (err) {
       console.error("Error deleting task:", err);
     }
@@ -346,9 +384,14 @@ export default function Tasks() {
                             <div className="flex-shrink-0 h-8 w-8 relative">
                               <img
                                 className="h-8 w-8 rounded-full bg-gray-200 object-cover border border-gray-200"
-                                src={users.filter((user) => user.email === task.assignedTo)[0]?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                  task.assignedTo.split("@")[0]
-                                )}&background=random&color=fff&size=32`}
+                                src={
+                                  users.filter(
+                                    (user) => user.email === task.assignedTo
+                                  )[0]?.image ||
+                                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                    task.assignedTo.split("@")[0]
+                                  )}&background=random&color=fff&size=32`
+                                }
                                 alt={task.assignedTo.split("@")[0]}
                               />
                               <span className="absolute bottom-0 right-0 block h-2 w-2 rounded-full ring-1 ring-white bg-green-400"></span>
@@ -527,7 +570,41 @@ export default function Tasks() {
                     </select>
                   </div>
                 </div>
-
+                <div>
+                  <label
+                    className="block text-gray-700 text-sm font-medium mb-2"
+                    htmlFor="assignedTo"
+                  >
+                    Asignado a
+                  </label>
+                  <select
+                    id="assignedTo"
+                    name="assignedTo"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    value={editingTask.assignedTo || ""}
+                    onChange={(e) => {
+                      console.log("Cambiando asignado a:", e.target.value); // Para depuración
+                      handleInputChange(e);
+                    }}
+                  >
+                    <option value={session?.user?.email || ""}>
+                      {session?.user?.name ||
+                        session?.user?.email ||
+                        "Usuario actual"}{" "}
+                      (Tú)
+                    </option>
+                    {users.map((user) => {
+                      if (user.email !== session?.user?.email) {
+                        return (
+                          <option key={user.email} value={user.email}>
+                            {user.name || user.email}
+                          </option>
+                        );
+                      }
+                      return null;
+                    })}
+                  </select>
+                </div>
                 <div>
                   <label
                     className="block text-gray-700 text-sm font-medium mb-2"

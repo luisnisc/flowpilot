@@ -64,6 +64,17 @@ export default async function handler(
         });
 
         return res.status(200).json(updatedTask);
+      case "DELETE":
+        // Eliminar tarea
+        const deleteResult = await tasksCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+
+        if (deleteResult.deletedCount === 0) {
+          return res.status(404).json({ error: "Tarea no encontrada" });
+        }
+
+        return res.status(204).end();
 
       default:
         res.setHeader("Allow", ["PATCH"]);

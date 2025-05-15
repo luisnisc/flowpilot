@@ -15,6 +15,13 @@ interface Project {
   name: string;
 }
 
+// Actualizar la interfaz para los usuarios
+interface User {
+  email: string;
+  name?: string;
+  role?: string;
+}
+
 export default function AddTaskForm() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -27,7 +34,7 @@ export default function AddTaskForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [users, setUsers] = useState<string[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -73,6 +80,7 @@ export default function AddTaskForm() {
       }
 
       const data = await res.json();
+      console.log("Usuarios obtenidos:", data); // Para depuración
       setUsers(data);
     } catch (err) {
       console.error("Error fetching users:", err);
@@ -119,24 +127,22 @@ export default function AddTaskForm() {
       return;
     }
 
-    // Asegurarse de que assignedTo tenga un valor
-    if (!formData.assignedTo) {
-      setFormData((prev) => ({
-        ...prev,
-        assignedTo: session?.user?.email || "",
-      }));
-    }
-
     setSubmitting(true);
     setError(null);
 
     try {
+      // Crear una copia del formData para asegurarse de que assignedTo tenga siempre un valor
+      const dataToSubmit = {
+        ...formData,
+        assignedTo: formData.assignedTo || session?.user?.email || "",
+      };
+
       const res = await fetch("/api/tasks", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(dataToSubmit),
       });
 
       if (!res.ok) {
@@ -324,30 +330,30 @@ export default function AddTaskForm() {
                     id="assignedTo"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     value={formData.assignedTo}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      console.log("Cambiando asignado a:", e.target.value); // Para depuración
                       setFormData((prev) => ({
                         ...prev,
                         assignedTo: e.target.value,
-                      }))
-                    }
-                    
+                      }));
+                    }}
                   >
                     <option value={session?.user?.email || ""}>
                       {session?.user?.name ||
                         session?.user?.email ||
-                        "Usuario actual"}
+                        "Usuario actual"}{" "}
+                      (Tú)
                     </option>
-                    {session?.user?.role === "admin" &&
-                      users.map((user: any) => {
-                        if (user.email !== session?.user?.email) {
-                          return (
-                            <option key={user.email} value={user.email}>
-                              {user.name || user.email}
-                            </option>
-                          );
-                        }
-                        return null;
-                      })}
+                    {users.map((user) => {
+                      if (user.email !== session?.user?.email) {
+                        return (
+                          <option key={user.email} value={user.email}>
+                            {user.name || user.email}
+                          </option>
+                        );
+                      }
+                      return null;
+                    })}
                   </select>
                 </div>
               </div>
