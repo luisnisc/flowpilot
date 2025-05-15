@@ -38,18 +38,22 @@ export default async function handler(
     const db = client.db("app");
 
     // Comprobar si el usuario tiene acceso al proyecto
-    let projectObjectId;
+    let projectQuery;
     try {
-      projectObjectId = new ObjectId(projectId);
+      // Intentar crear un ObjectId con el projectId
+      const projectObjectId = new ObjectId(projectId);
+      projectQuery = { _id: projectObjectId };
     } catch (error) {
-      console.log(
-        "ID de proyecto no es un ObjectId válido, usando como string"
-      );
+      console.log("ID de proyecto no es un ObjectId válido");
+      // Si no es un ObjectId válido, buscar por otros campos
+      projectQuery = {
+        $or: [
+          { _id: projectId }, // Intentar como string de todas formas
+          { name: projectId },
+          { slug: projectId },
+        ],
+      };
     }
-
-    const projectQuery = projectObjectId
-      ? { _id: projectObjectId }
-      : { _id: projectId };
 
     const project = await db.collection("projects").findOne({
       ...projectQuery,
