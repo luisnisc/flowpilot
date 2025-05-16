@@ -69,6 +69,9 @@ export default function Login() {
             className="input mb-4"
             required
           />
+          "~/ollama-terminal.sh"
+    m:0x0 + c:201
+
           <input
             name="password"
             type="password"

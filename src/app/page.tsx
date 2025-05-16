@@ -518,7 +518,7 @@ export default function Home() {
           {Array.from({ length: 20 }).map((_, i) => (
             <motion.div
               key={i}
-              className="absolute rounded-full bg-white/10"
+              className="absolute rounded-full bg-white"
               style={{
                 width: Math.random() * 100 + 10,
                 height: Math.random() * 100 + 10,
@@ -567,7 +567,7 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.6 }}
           >
-            <Link href="/register">
+            <Link href="/login">
               <motion.button
                 className="px-8 py-4 bg-blue-500 hover:bg-blue-600 rounded-full font-bold text-lg transition-colors"
                 whileHover={{ scale: 1.05 }}

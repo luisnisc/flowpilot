@@ -78,7 +78,7 @@ export default function Register() {
           />
           <input
             name="passwordConfirm"
-            type="passwordConfirm"
+            type="password"
             placeholder="Confirmar Contraseña"
             className="input mb-4"
             value={passwordConfirm}
