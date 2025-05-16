@@ -7,7 +7,8 @@ import GoogleProvider from "next-auth/providers/google";
 import GithubProvider from "next-auth/providers/github";
 
 const isVercel = process.env.VERCEL || false;
-const baseUrl = process.env.NEXTAUTH_URL || 
+const baseUrl =
+  process.env.NEXTAUTH_URL ||
   (isVercel ? "https://flowpilotnisc.vercel.app" : "http://localhost:3000");
 
 console.log("Entorno:", isVercel ? "Vercel" : "Local");
@@ -15,7 +16,9 @@ console.log("Base URL:", baseUrl);
 
 const githubCredentials = {
   clientId: isVercel ? process.env.VERCEL_GITHUB_ID : process.env.GITHUB_ID,
-  clientSecret: isVercel ? process.env.VERCEL_GITHUB_SECRET : process.env.GITHUB_SECRET,
+  clientSecret: isVercel
+    ? process.env.VERCEL_GITHUB_SECRET
+    : process.env.GITHUB_SECRET,
   callbackUrl: `${baseUrl}/api/auth/callback/github`, // Aquí forzamos la URL de callback
   allowDangerousEmailAccountLinking: true,
 };
@@ -79,23 +82,41 @@ export const authOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const client = await clientPromise;
-        const db = client.db("app");
-        const user = await db
-          .collection("users")
-          .findOne({ email: credentials.email });
-        if (!user) return null;
-        const isValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        );
-        if (!isValid) return null;
-        return {
-          id: user._id.toString(),
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        };
+        try {
+          const client = await clientPromise;
+          const db = client.db("app");
+
+          // Normalizar email
+          const normalizedEmail = credentials.email.toLowerCase().trim();
+
+          const user = await db.collection("users").findOne({
+            email: normalizedEmail,
+          });
+
+          if (!user) return null;
+
+          // Si el usuario existe pero no tiene contraseña (se registró con Google/GitHub)
+          if (!user.password) {
+            return null; // No permitir inicio de sesión con credenciales para usuarios de OAuth
+          }
+
+          const isValid = await bcrypt.compare(
+            credentials.password,
+            user.password
+          );
+          if (!isValid) return null;
+
+          return {
+            id: user._id.toString(),
+            name: user.name,
+            email: user.email,
+            role: user.role || "user",
+            image: user.image, // Si tienen imagen de perfil
+          };
+        } catch (error) {
+          console.error("Error en authorize de credenciales:", error);
+          return null;
+        }
       },
     }),
     GoogleProvider(googleCredentials),
