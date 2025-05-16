@@ -334,8 +334,6 @@ export default function useProjectSync(
       updateTaskViaAPI(taskId, newStatus);
     }
 
-    // IMPORTANTE: Siempre intentar la actualización vía API como respaldo
-    // incluso si el socket está conectado
     updateTaskViaAPI(taskId, newStatus);
   };
 
@@ -423,10 +421,6 @@ export default function useProjectSync(
         status: columnToStatus[destination.droppableId],
       };
 
-      // No necesitamos actualizar manualmente el estado aquí
-      // Ya que la función updateTask ahora se encarga de ello
-
-      // Siempre intentamos actualizar mediante el socket
       updateTask(
         draggedTask.id,
         columnToStatus[destination.droppableId],

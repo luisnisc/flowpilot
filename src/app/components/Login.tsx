@@ -1,103 +1,197 @@
 "use client";
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { FiMail, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 
-export default function Login() {
-  const { data: session, status } = useSession();
+interface LoginProps {
+  callbackUrl?: string;
+}
+export default function Login({ callbackUrl }: LoginProps) {
+  const { data: session } = useSession();
   const router = useRouter();
-
-  if(session) {
-    router.push("/dashboard");
-  }
+  const searchParams = useSearchParams();
+  const registered = searchParams?.get("registered") === "true";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(
+    registered ? "Cuenta creada correctamente. Inicia sesión para continuar." : null
+  );
   const [loading, setLoading] = useState(false);
-  
+  const [showPassword, setShowPassword] = useState(false);
+
+  if (session) {
+    router.push("/dashboard");
+    return null;
+  }
 
   const handleCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const form = e.currentTarget as HTMLFormElement;
-    const email = (form.email as HTMLInputElement).value;
-    const password = (form.password as HTMLInputElement).value;
-
-    const res = await signIn("credentials", {
-      redirect: false,
-      email,
-      password,
-    });
-    setLoading(false);
-    if (res?.error) setError(res.error);
-    else router.push("/dashboard");
+    setError(null);
+    
+    try {
+      const res = await signIn("credentials", {
+        redirect: false,
+        email,
+        password,
+      });
+      
+      if (res?.error) {
+        setError(res.error);
+      } else {
+        router.push("/dashboard");
+      }
+    } catch (err) {
+      setError("Error de conexión. Comprueba tu internet.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-        <p className="mt-4 text-gray-600">Iniciando sesión...</p>
+      <div className="flex flex-col items-center justify-center min-h-screen min-w-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="p-8 rounded-lg shadow-xl bg-white flex flex-col items-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-600 border-opacity-50"></div>
+          <p className="mt-6 text-gray-700 font-medium">Iniciando sesión...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-gray-200">
-      <div className="flex flex-col items-center justify-center h-96 w-max pr-4 pl-4 bg-white rounded-2xl">
-        <h1 className="text-3xl font-bold mb-4 text-black">Iniciar Sesión</h1>
+    <div className="flex min-h-screen min-w-screen bg-gradient-to-br from-blue-50 to-indigo-100 text-black">
+      <div className="m-auto w-full max-w-md p-8 rounded-xl shadow-xl bg-white">
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-bold text-gray-800">Iniciar Sesión</h1>
+          <p className="mt-2 text-gray-600">Accede a tu cuenta y gestiona tus proyectos</p>
+        </div>
+        
         {error && (
-          <div className="alert alert-error shadow-lg mb-4">
-            <div>
-              <span>{error}</span>
-            </div>
+          <div className="mb-6 p-4 rounded-lg bg-red-50 border-l-4 border-red-500">
+            <p className="text-red-700 text-sm">{error}</p>
           </div>
         )}
-        <form
-          onSubmit={handleCredentials}
-          className="flex flex-col items-center"
-        >
-          <input
-            name="email"
-            type="email"
-            placeholder="Email"
-            className="input mb-4"
-            required
-          />
-          "~/ollama-terminal.sh"
-    m:0x0 + c:201
-
-          <input
-            name="password"
-            type="password"
-            placeholder="Password"
-            className="input mb-4"
-            required
-          />
-          <button type="submit" className="btn btn-primary mb-4">
-            {loading ? "Cargando..." : "Iniciar Sesión"}
+        
+        {success && (
+          <div className="mb-6 p-4 rounded-lg bg-green-50 border-l-4 border-green-500">
+            <p className="text-green-700 text-sm">{success}</p>
+          </div>
+        )}
+        
+        <form onSubmit={handleCredentials} className="space-y-5">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500">
+              <FiMail className="w-5 h-5" />
+            </div>
+            <input
+              name="email"
+              type="email"
+              placeholder="Correo electrónico"
+              className="w-full pl-10 pr-3 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500">
+              <FiLock className="w-5 h-5" />
+            </div>
+            <input
+              name="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Contraseña"
+              className="w-full pl-10 pr-12 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <button
+              type="button"
+              className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
+            </button>
+          </div>
+          
+          <div className="flex justify-end">
+            <Link
+              href="/forgot-password"
+              className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
+          
+          <button
+            type="submit"
+            className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors duration-300 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50"
+          >
+            Iniciar Sesión
           </button>
         </form>
-        <div className="flex flex-row items-center gap-4">
+        
+        <div className="mt-8 relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white text-gray-500">O continúa con</span>
+          </div>
+        </div>
+        
+        <div className="mt-6 grid grid-cols-2 gap-4">
           <button
-            onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-            className="btn flex items-center"
+            onClick={() => {
+              setLoading(true);
+              signIn("google", { callbackUrl: "/dashboard" });
+            }}
+            className="flex items-center justify-center py-2.5 px-4 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition-colors"
           >
-            <Image src="/google.svg" width={20} height={20} alt="Google" />
-            &nbsp;Google
+            <Image 
+              src="/google.svg" 
+              width={20} 
+              height={20} 
+              alt="Google"
+              className="mr-2"
+            />
+            <span className="text-sm font-medium text-gray-700">Google</span>
           </button>
+          
           <button
-            onClick={() => signIn("github", { callbackUrl: "/dashboard" })}
-            className="btn flex items-center"
+            onClick={() => {
+              setLoading(true);
+              signIn("github", { callbackUrl: "/dashboard" });
+            }}
+            className="flex items-center justify-center py-2.5 px-4 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition-colors"
           >
-            <Image src="/github_dark.svg" width={20} height={20} alt="GitHub" />
-            &nbsp;GitHub
+            <Image 
+              src="/github_light.svg" 
+              width={20} 
+              height={20} 
+              alt="GitHub"
+              className="mr-2"
+            />
+            <span className="text-sm font-medium text-gray-700">GitHub</span>
           </button>
+        </div>
+        
+        <div className="mt-6 text-center">
+          <p className="text-gray-600">
+            ¿No tienes una cuenta?{" "}
+            <Link href="/register" className="text-blue-600 hover:text-blue-800 font-medium">
+              Regístrate
+            </Link>
+          </p>
         </div>
       </div>
     </div>
