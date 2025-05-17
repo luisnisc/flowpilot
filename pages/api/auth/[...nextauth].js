@@ -6,14 +6,20 @@ import bcrypt from "bcryptjs";
 import GoogleProvider from "next-auth/providers/google";
 import GithubProvider from "next-auth/providers/github";
 
-const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+const isRender = process.env.RENDER || false;
+const baseUrl =
+  process.env.NEXTAUTH_URL ||
+  (isRender ? "https://flowpilotnisc.vercel.app" : "http://localhost:3000");
 
+console.log("Entorno:", isRender ? "Render" : "Local");
 console.log("Base URL:", baseUrl);
 
 const githubCredentials = {
-  clientId: process.env.GITHUB_ID,
-  clientSecret: process.env.GITHUB_SECRET,
-  callbackUrl: `${baseUrl}/api/auth/callback/github`,
+  clientId: isRender ? process.env.RENDER_GITHUB_ID : process.env.GITHUB_ID,
+  clientSecret: isRender
+    ? process.env.RENDER_GITHUB_SECRET
+    : process.env.GITHUB_SECRET,
+  callbackUrl: `${baseUrl}/api/auth/callback/github`, // Aquí forzamos la URL de callback
   allowDangerousEmailAccountLinking: true,
 };
 
