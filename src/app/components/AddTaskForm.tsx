@@ -331,7 +331,6 @@ export default function AddTaskForm() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     value={formData.assignedTo}
                     onChange={(e) => {
-                      console.log("Cambiando asignado a:", e.target.value); // Para depuración
                       setFormData((prev) => ({
                         ...prev,
                         assignedTo: e.target.value,
@@ -344,16 +343,17 @@ export default function AddTaskForm() {
                         "Usuario actual"}{" "}
                       (Tú)
                     </option>
-                    {users.map((user) => {
-                      if (user.email !== session?.user?.email) {
-                        return (
-                          <option key={user.email} value={user.email}>
-                            {user.name || user.email}
-                          </option>
-                        );
-                      }
-                      return null;
-                    })}
+                    {session?.user?.role === "admin" &&
+                      users.map((user) => {
+                        if (user.email !== session?.user?.email) {
+                          return (
+                            <option key={user.email} value={user.email}>
+                              {user.name || user.email}
+                            </option>
+                          );
+                        }
+                        return null;
+                      })}
                   </select>
                 </div>
               </div>
