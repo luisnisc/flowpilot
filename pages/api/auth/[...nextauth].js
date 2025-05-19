@@ -19,7 +19,7 @@ const githubCredentials = {
   clientSecret: isRender
     ? process.env.RENDER_GITHUB_SECRET
     : process.env.GITHUB_SECRET,
-  callbackUrl: `${baseUrl}/api/auth/callback/github`, // Aquí forzamos la URL de callback
+  callbackUrl: `${baseUrl}/api/auth/callback/github`,
   allowDangerousEmailAccountLinking: true,
 };
 
@@ -86,7 +86,6 @@ export const authOptions = {
           const client = await clientPromise;
           const db = client.db("app");
 
-          // Normalizar email
           const normalizedEmail = credentials.email.toLowerCase().trim();
 
           const user = await db.collection("users").findOne({
@@ -95,9 +94,8 @@ export const authOptions = {
 
           if (!user) return null;
 
-          // Si el usuario existe pero no tiene contraseña (se registró con Google/GitHub)
           if (!user.password) {
-            return null; // No permitir inicio de sesión con credenciales para usuarios de OAuth
+            return null; 
           }
 
           const isValid = await bcrypt.compare(
@@ -111,7 +109,7 @@ export const authOptions = {
             name: user.name,
             email: user.email,
             role: user.role || "user",
-            image: user.image, // Si tienen imagen de perfil
+            image: user.image, 
           };
         } catch (error) {
           console.error("Error en authorize de credenciales:", error);

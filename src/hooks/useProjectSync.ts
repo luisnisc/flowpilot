@@ -44,10 +44,8 @@ export default function useProjectSync(
   const [tasksInFlight, setTasksInFlight] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    // Si no hay ID de proyecto, no intentamos conectarnos
     if (!projectId) return;
 
-    // Inicializar socket y conectarse al servidor
     const initSocket = async () => {
       try {
         console.log(
@@ -55,7 +53,6 @@ export default function useProjectSync(
           projectId
         );
 
-        // Asegurarse de que el servidor socket está listo
         try {
           const socketCheck = await fetch("/api/socket");
           if (!socketCheck.ok) {
@@ -65,19 +62,15 @@ export default function useProjectSync(
           }
         } catch (fetchError) {
           console.error("Error preparando el servidor socket:", fetchError);
-          // Continuamos de todos modos, ya que el servidor podría estar funcionando
         }
 
-        // Crear conexión con opciones mejoradas
         socketRef.current = io("/kanban", {
-          // No especificar path aquí, deja que Socket.IO use /socket.io por defecto
           reconnectionAttempts: 5,
           reconnectionDelay: 1000,
           timeout: 10000,
           transports: ["polling", "websocket"],
         });
 
-        // Manejar conexión establecida
         socketRef.current.on("connect", () => {
           console.log(
             "Socket conectado exitosamente, ID:",
@@ -86,16 +79,13 @@ export default function useProjectSync(
           setConnected(true);
           reconnectAttemptRef.current = 0;
 
-          // Unirse a la sala de sincronización del proyecto
           const roomName = `sync-${projectId}`;
           socketRef.current?.emit("joinProjectSync", projectId);
           console.log(`Enviado evento joinProjectSync para sala: ${roomName}`);
 
-          // Procesar actualizaciones pendientes
           processQueuedUpdates();
         });
 
-        // Mejorar el manejo de errores de conexión
         socketRef.current.on("connect_error", (error) => {
           console.error(
             "Error de conexión al socket:",
@@ -113,45 +103,37 @@ export default function useProjectSync(
           }
         });
 
-        // Manejar desconexiones
         socketRef.current.on("disconnect", (reason) => {
           console.log(`Socket desconectado: ${reason}`);
           setConnected(false);
         });
 
-        // Manejar reconexiones
         socketRef.current.on("reconnect", (attemptNumber) => {
           console.log(`Socket reconectado al intento ${attemptNumber}`);
           reconnectAttemptRef.current = 0;
 
-          // Volver a unirse a la sala del proyecto
           const roomName = `sync-${projectId}`;
           socketRef.current?.emit("joinProjectSync", projectId);
           console.log(
             `Re-enviado evento joinProjectSync para sala: ${roomName}`
           );
 
-          // Procesar actualizaciones pendientes
           processQueuedUpdates();
         });
 
-        // Escuchar actualizaciones de tareas - modificar esto para evitar rebotes
         socketRef.current.on("taskUpdated", (task: Task) => {
           console.log("Tarea actualizada recibida:", task);
 
-          // IMPORTANTE: Solo actualizar si la tarea no viene de una actualización propia reciente
           const isRecentLocalUpdate = pendingUpdatesRef.current.some(
             (update) =>
               update.taskId === task.id && update.newStatus === task.status
           );
 
           if (!isRecentLocalUpdate) {
-            // Solo actualizar si no es una actualización que nosotros mismos acabamos de hacer
             updateLocalState(task);
           } else {
             console.log("Ignorando actualización redundante de tarea", task.id);
 
-            // Limpiar esta actualización de la cola de pendientes
             pendingUpdatesRef.current = pendingUpdatesRef.current.filter(
               (update) =>
                 !(update.taskId === task.id && update.newStatus === task.status)
@@ -159,7 +141,6 @@ export default function useProjectSync(
           }
         });
 
-        // Escuchar errores del servidor
         socketRef.current.on("error", (errorData: any) => {
           console.error("Error recibido desde servidor socket:", errorData);
         });
@@ -172,14 +153,11 @@ export default function useProjectSync(
       }
     };
 
-    // Función para actualizar el estado local al recibir actualizaciones
     const updateLocalState = (task: Task) => {
       try {
         setColumns((prevColumns) => {
-          // Crear copia profunda para evitar mutaciones
           const newColumns = JSON.parse(JSON.stringify(prevColumns)) as Columns;
 
-          // Mapeo de estado a columna
           const statusToColumn: Record<string, keyof Columns> = {
             pending: "backlog",
             in_progress: "in_progress",
@@ -189,7 +167,6 @@ export default function useProjectSync(
 
           const targetColumn = statusToColumn[task.status] || "backlog";
 
-          // Eliminar tarea de todas las columnas
           Object.keys(newColumns).forEach((columnKey) => {
             const columnName = columnKey as keyof Columns;
             newColumns[columnName] = newColumns[columnName].filter(
@@ -197,7 +174,6 @@ export default function useProjectSync(
             );
           });
 
-          // Añadir tarea a la columna destino
           newColumns[targetColumn].push(task);
 
           return newColumns;
@@ -207,7 +183,6 @@ export default function useProjectSync(
       }
     };
 
-    // Función para procesar la cola de actualizaciones pendientes
     const processQueuedUpdates = () => {
       if (
         !socketRef.current ||
@@ -244,7 +219,6 @@ export default function useProjectSync(
 
     initSocket();
 
-    // Limpiar al desmontar
     return () => {
       if (socketRef.current) {
         console.log("Desconectando socket al desmontar componente");
@@ -253,7 +227,6 @@ export default function useProjectSync(
     };
   }, [projectId]);
 
-  // Cada vez que cambie el estado de conexión, notificamos al usuario
   useEffect(() => {
     if (connected) {
       console.log("✅ Socket conectado para sincronización en tiempo real");
@@ -264,7 +237,6 @@ export default function useProjectSync(
     }
   }, [connected]);
 
-  // Función para emitir actualizaciones
   const updateTask = (
     taskId: string,
     newStatus: string,
@@ -272,13 +244,11 @@ export default function useProjectSync(
   ): void => {
     console.log("Actualizando tarea:", taskId, "a estado:", newStatus);
 
-    // Verificar que el estado sea válido
     if (!["pending", "in_progress", "review", "done"].includes(newStatus)) {
       console.error(`Estado de tarea no válido: ${newStatus}`);
       return;
     }
 
-    // Crear una copia profunda del objeto de tarea para evitar referencias
     const updatedTask = JSON.parse(
       JSON.stringify({
         ...taskData,
@@ -286,11 +256,9 @@ export default function useProjectSync(
       })
     );
 
-    // Actualizar el estado una sola vez para evitar rebotes
     setColumns((prevColumns) => {
       const newColumns = JSON.parse(JSON.stringify(prevColumns)) as Columns;
 
-      // Mapeo de estado a nombre de columna
       const statusToColumn: Record<string, keyof Columns> = {
         pending: "backlog",
         in_progress: "in_progress",
@@ -298,7 +266,6 @@ export default function useProjectSync(
         done: "done",
       };
 
-      // Eliminar la tarea de todas las columnas primero
       Object.keys(newColumns).forEach((columnKey) => {
         const columnName = columnKey as keyof Columns;
         newColumns[columnName] = newColumns[columnName].filter(
@@ -306,14 +273,12 @@ export default function useProjectSync(
         );
       });
 
-      // Añadir la tarea a la columna correcta
       const targetColumn = statusToColumn[newStatus] || "backlog";
       newColumns[targetColumn].push(updatedTask);
 
       return newColumns;
     });
 
-    // Emitir el evento al servidor si estamos conectados
     if (socketRef.current && connected) {
       try {
         socketRef.current.emit("updateTask", {
@@ -326,7 +291,6 @@ export default function useProjectSync(
         console.log("Evento Socket.IO enviado para actualizar tarea", taskId);
       } catch (err) {
         console.error("Error emitiendo evento updateTask:", err);
-        // Si hay un error con el socket, intentamos la API
         updateTaskViaAPI(taskId, newStatus);
       }
     } else {
@@ -337,14 +301,12 @@ export default function useProjectSync(
     updateTaskViaAPI(taskId, newStatus);
   };
 
-  // Actualización mediante API REST como fallback cuando el socket está desconectado
   const updateTaskViaAPI = async (taskId: string, newStatus: string) => {
     try {
       console.log(
         `[API] Intentando actualizar tarea ${taskId} a estado ${newStatus}`
       );
 
-      // Registrar la URL y los datos enviados
       console.log(`[API] URL: /api/tasks/${taskId}`);
       console.log("[API] Payload:", { status: newStatus });
 
@@ -356,11 +318,9 @@ export default function useProjectSync(
         body: JSON.stringify({ status: newStatus }),
       });
 
-      // Leer el texto de la respuesta antes de intentar parsear como JSON
       const responseText = await response.text();
       console.log(`[API] Respuesta (status ${response.status}):`, responseText);
 
-      // Intentar parsear como JSON si es posible
       let responseData;
       try {
         if (responseText) {
@@ -384,7 +344,6 @@ export default function useProjectSync(
     }
   };
 
-  // Modificar onDragEnd para ser más robusto
   const onDragEnd = (result: any) => {
     const { destination, source, draggableId } = result;
 
@@ -427,7 +386,6 @@ export default function useProjectSync(
         updatedTask
       );
 
-      // También actualizar en la base de datos como respaldo
       updateTaskViaAPI(draggedTask.id, columnToStatus[destination.droppableId]);
     } catch (error) {
       console.error("Error en onDragEnd:", error);

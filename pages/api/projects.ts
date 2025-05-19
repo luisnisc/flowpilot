@@ -8,8 +8,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const client = await clientPromise;
   const db = client.db("app");
   if (req.method === "POST") {
-    const { name, description, users } = req.body;
-    const result = await db.collection("projects").insertOne({ name, description, users});
+    const { name, description, users, status } = req.body;
+    const result = await db.collection("projects").insertOne({ name, description, users, status});
     return res.status(201).json(result);
   } else if (req.method === "GET") {
     const projects = await db.collection("projects").find().toArray();

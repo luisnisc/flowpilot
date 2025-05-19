@@ -4,7 +4,6 @@ import clientPromise from "../../../lib/mongodb";
 import { ObjectId } from "mongodb";
 import authOptions from "../auth/[...nextauth]";
 
-// Definimos interfaces para tipar correctamente la sesión
 interface SessionUser {
   name?: string;
   email?: string;
@@ -22,7 +21,6 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    // Aplicamos el tipo de sesión que hemos definido
     const session = (await getServerSession(
       req,
       res,
@@ -41,7 +39,6 @@ export default async function handler(
     const client = await clientPromise;
     const db = client.db("app");
 
-    // Comprobar si el usuario tiene acceso al proyecto
     const project = await db.collection("projects").findOne({
       _id: new ObjectId(projectId),
       $or: [
@@ -50,7 +47,6 @@ export default async function handler(
       ],
     });
 
-    // Contar tareas por estado
     const taskStats = {
       pending: await db
         .collection("tasks")

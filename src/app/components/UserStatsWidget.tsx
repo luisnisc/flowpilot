@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 import dynamic from "next/dynamic";
 
-// Importación dinámica para evitar problemas de SSR
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 interface UserStatsWidgetProps {

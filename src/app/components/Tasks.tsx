@@ -15,7 +15,6 @@ import {
   FaSave,
 } from "react-icons/fa";
 
-// Actualizar la interfaz de Usuario para tipado correcto
 interface User {
   _id?: string;
   email: string;
@@ -62,10 +61,9 @@ export default function Tasks() {
     if (status === "unauthenticated") {
       router.push("/login");
     } else if (status === "authenticated" && session?.user?.email) {
-      // Establecer isAdmin antes de fetchData
       if (session?.user?.role === "admin") {
         setIsAdmin(true);
-        fetchData(true); // Pasar flag indicando que es admin
+        fetchData(true); 
       } else {
         fetchData(false);
       }
@@ -102,9 +100,8 @@ export default function Tasks() {
       const tasksData = await tasksRes.json();
       const usersData = await usersRes.json();
 
-      // Usar el parámetro adminUser pasado directamente, en lugar de isAdmin (que podría no estar actualizado)
       const userTasks = adminUser
-        ? tasksData // Mostrar todas las tareas para admin
+        ? tasksData 
         : tasksData.filter(
             (task: Task) => task.assignedTo === session?.user?.email
           );
@@ -125,7 +122,7 @@ export default function Tasks() {
       const res = await fetch("/api/users");
       if (res.ok) {
         const data = await res.json();
-        console.log("Usuarios obtenidos:", data); // Para depuración
+        console.log("Usuarios obtenidos:", data); 
         setUsers(data);
       } else {
         console.error("Error fetching users:", await res.text());
@@ -583,7 +580,7 @@ export default function Tasks() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     value={editingTask.assignedTo || ""}
                     onChange={(e) => {
-                      console.log("Cambiando asignado a:", e.target.value); // Para depuración
+                      console.log("Cambiando asignado a:", e.target.value); 
                       handleInputChange(e);
                     }}
                   >

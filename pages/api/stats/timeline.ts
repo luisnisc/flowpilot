@@ -37,18 +37,15 @@ export default async function handler(
     const client = await clientPromise;
     const db = client.db("app");
 
-    // Comprobar si el usuario tiene acceso al proyecto
     let projectQuery;
     try {
-      // Intentar crear un ObjectId con el projectId
       const projectObjectId = new ObjectId(projectId);
       projectQuery = { _id: projectObjectId };
     } catch (error) {
       console.log("ID de proyecto no es un ObjectId válido");
-      // Si no es un ObjectId válido, buscar por otros campos
       projectQuery = {
         $or: [
-          { _id: projectId }, // Intentar como string de todas formas
+          { _id: projectId }, 
           { name: projectId },
           { slug: projectId },
         ],
@@ -68,7 +65,6 @@ export default async function handler(
       console.log("Proyecto no encontrado o usuario sin acceso");
     }
 
-    // Obtener los últimos 14 días para el análisis
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(endDate.getDate() - 14);
@@ -78,7 +74,6 @@ export default async function handler(
     );
     console.log(`Buscando en proyecto: ${projectId}`);
 
-    // Obtener tareas completadas por día usando updatedAt
     const tasksCompleted = await db
       .collection("tasks")
       .aggregate([
@@ -103,7 +98,6 @@ export default async function handler(
 
     console.log("Tareas completadas encontradas:", tasksCompleted.length);
 
-    // Obtener tareas creadas por día
     const tasksCreated = await db
       .collection("tasks")
       .aggregate([
@@ -127,7 +121,6 @@ export default async function handler(
 
     console.log("Tareas creadas encontradas:", tasksCreated.length);
 
-    // Tareas que pasaron a estado in_progress
     const tasksInProgress = await db
       .collection("tasks")
       .aggregate([
@@ -150,7 +143,6 @@ export default async function handler(
       ])
       .toArray();
 
-    // Tareas que pasaron a review
     const tasksInReview = await db
       .collection("tasks")
       .aggregate([
@@ -173,7 +165,6 @@ export default async function handler(
       ])
       .toArray();
 
-    // Generar array de fechas para los últimos 14 días
     const dates = [];
     for (let i = 0; i < 14; i++) {
       const date = new Date(startDate);
@@ -182,7 +173,6 @@ export default async function handler(
       dates.push(dateString);
     }
 
-    // Crear timeline con datos completos
     const timeline = dates.map((date) => {
       const completed = tasksCompleted.find((item) => item._id === date);
       const created = tasksCreated.find((item) => item._id === date);
@@ -195,12 +185,11 @@ export default async function handler(
       const inReviewCount = inReview ? inReview.count : 0;
 
       return {
-        date: date.substring(5), // Solo mostrar MM-DD para más claridad
+        date: date.substring(5),
         completed: completedCount,
         created: createdCount,
         inProgress: inProgressCount,
         inReview: inReviewCount,
-        comments: 0, // Implementar si hay comentarios
         activity:
           completedCount + createdCount + inProgressCount + inReviewCount,
       };

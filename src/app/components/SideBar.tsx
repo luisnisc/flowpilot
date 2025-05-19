@@ -66,7 +66,6 @@ export default function SideBar() {
     }
 
     try {
-      // 1. Guardar los cambios de usuario
       const response = await fetch(
         `/api/users/${encodeURIComponent(userEmail)}`,
         {
@@ -83,13 +82,10 @@ export default function SideBar() {
       }
 
       const updatedUser = await response.json();
-
-      // 2. Propagar cambios a proyectos asociados
       if (
         userEmail !== userSettings.email ||
         session?.user?.name !== userSettings.name
       ) {
-        // Si cambió el email o nombre, sincronizar con proyectos
         const syncResponse = await fetch("/api/users/sync-data", {
           method: "POST",
           headers: {
@@ -113,8 +109,6 @@ export default function SideBar() {
         }
       }
 
-      // 3. Actualizar la sesión para reflejar los cambios inmediatamente
-      // Nota: Esto requiere un reload de la página para ver los cambios en la sesión
       alert(
         "Configuración guardada correctamente. La página se recargará para aplicar los cambios."
       );

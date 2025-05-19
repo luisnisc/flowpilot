@@ -21,7 +21,6 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    // Verificar sesión
     const session = (await getServerSession(
       req,
       res,
@@ -37,20 +36,16 @@ export default async function handler(
       return res.status(400).json({ error: "ID de proyecto requerido" });
     }
 
-    // Conectar a MongoDB
     const client = await clientPromise;
     const db = client.db("app");
     const projectsCollection = db.collection("projects");
 
-    // Intentar buscar el proyecto, primero como ObjectId y luego como string
     let project = null;
     let projectObjectId;
 
-    // Intentar convertir a ObjectId
     try {
       projectObjectId = new ObjectId(id);
 
-      // Buscar por ObjectId
       project = await projectsCollection.findOne({
         _id: projectObjectId,
       });
@@ -58,10 +53,8 @@ export default async function handler(
       console.log("Búsqueda por ObjectId:", !!project);
     } catch (err) {
       console.log("Error al convertir ID a ObjectId:", err);
-      // No hacemos return aquí para permitir buscar como string
     }
 
-    // Si no se encontró por ObjectId, intentar buscar como string usando query por campo personalizado
     if (!project) {
       project = await projectsCollection.findOne({
         _id: id as any, 
@@ -69,7 +62,6 @@ export default async function handler(
       console.log("Búsqueda por string ID:", !!project);
     }
 
-    // Agregar un log para depuración
     console.log("Buscando proyecto con ID:", id);
     console.log("Proyecto encontrado:", project ? "Sí" : "No");
 
@@ -80,20 +72,16 @@ export default async function handler(
       });
     }
 
-    // Manejar diferentes métodos HTTP
     switch (req.method) {
       case "GET":
         return res.status(200).json(project);
 
       case "PATCH":
-        // Solo se permite actualizar ciertos campos
         const updateData: any = {};
 
-        // Si se proporcionan usuarios para añadir o eliminar
         if (req.body.users && Array.isArray(req.body.users)) {
           const currentUsers = project.users || [];
 
-          // Si la acción es remover usuarios
           if (req.body.action === "remove") {
             const updatedUsers = currentUsers.filter((user: any) => {
               const userEmail = typeof user === "string" ? user : user.email;
@@ -101,48 +89,38 @@ export default async function handler(
             });
             updateData.users = updatedUsers;
           }
-          // Si la acción es añadir usuarios o no se especifica acción (comportamiento por defecto)
           else {
             const newUsers = req.body.users.filter(
               (user: string) => !currentUsers.includes(user)
             );
 
-            // Actualizar solo si hay nuevos usuarios para añadir
             if (newUsers.length > 0) {
               updateData.users = [...currentUsers, ...newUsers];
             }
           }
         }
 
-        // Mantener compatibilidad con el método removeUser anterior
         if (req.body.removeUser && typeof req.body.removeUser === "string") {
-          // Obtener usuarios actuales y eliminar el usuario especificado
           const currentUsers = project.users || [];
           const updatedUsers = currentUsers.filter((user: any) => {
-            // Manejar tanto strings como objetos user
             const userEmail = typeof user === "string" ? user : user.email;
             return userEmail !== req.body.removeUser;
           });
-
-          // Actualizar la lista de usuarios
           updateData.users = updatedUsers;
         }
 
-        // Para otras actualizaciones como nombre, descripción, etc.
         if (req.body.name) updateData.name = req.body.name;
         if (req.body.description) updateData.description = req.body.description;
         if (req.body.status) updateData.status = req.body.status;
 
-        // Solo actualizar si hay datos para actualizar
         if (Object.keys(updateData).length === 0) {
           return res.status(400).json({
             error: "No se proporcionaron datos válidos para actualizar",
           });
         }
 
-        // Realizar la actualización - usar el mismo tipo de ID que se usó para encontrar el proyecto
         const updateResult = await projectsCollection.updateOne(
-          { _id: project._id }, // Usamos el _id que ya encontramos
+          { _id: project._id },
           { $set: updateData }
         );
 
@@ -152,15 +130,13 @@ export default async function handler(
           });
         }
 
-        // Obtener proyecto actualizado
         const updatedProject = await projectsCollection.findOne({
-          _id: project._id, // Usamos el _id que ya encontramos
+          _id: project._id, 
         });
 
         return res.status(200).json(updatedProject);
 
       case "DELETE":
-        // Solo administradores pueden eliminar proyectos
         const isAdmin = session.user?.role === "admin";
         if (!isAdmin) {
           return res.status(403).json({
@@ -168,9 +144,8 @@ export default async function handler(
           });
         }
 
-        // Eliminar proyecto - usar el mismo tipo de ID que se usó para encontrar el proyecto
         const deleteResult = await projectsCollection.deleteOne({
-          _id: project._id, // Usamos el _id que ya encontramos
+          _id: project._id, 
         });
 
         if (deleteResult.deletedCount === 0) {
@@ -182,7 +157,6 @@ export default async function handler(
         });
 
       case "PUT":
-        // Verificar que el cuerpo de la solicitud contiene los campos necesarios
         if (
           !req.body.users ||
           !Array.isArray(req.body.users) ||
@@ -193,15 +167,12 @@ export default async function handler(
           });
         }
 
-        // Obtener la lista actual de usuarios del proyecto
         const existingUsers = project.users || [];
 
-        // Filtrar para solo añadir usuarios que no están ya en el proyecto
         const usersToAdd = req.body.users.filter(
           (user: string) => !existingUsers.includes(user)
         );
 
-        // Si no hay nuevos usuarios para añadir, devolver un mensaje
         if (usersToAdd.length === 0) {
           return res.status(200).json({
             message: "No hay nuevos usuarios para añadir",
@@ -209,10 +180,8 @@ export default async function handler(
           });
         }
 
-        // Añadir los nuevos usuarios al proyecto
         const updatedUsers = [...existingUsers, ...usersToAdd];
 
-        // Actualizar el proyecto en la base de datos
         const putResult = await projectsCollection.updateOne(
           { _id: project._id },
           { $set: { users: updatedUsers } }
@@ -224,7 +193,6 @@ export default async function handler(
           });
         }
 
-        // Obtener el proyecto actualizado
         const projectWithNewUsers = await projectsCollection.findOne({
           _id: project._id,
         });

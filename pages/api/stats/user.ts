@@ -26,7 +26,6 @@ export default async function handler(
 
     const { email } = req.query;
 
-    // Solo permitir al propio usuario o a los administradores
     if (email !== session.user.email && session.user.role !== "admin") {
       return res.status(403).json({ error: "No autorizado" });
     }
@@ -34,12 +33,10 @@ export default async function handler(
     const client = await clientPromise;
     const db = client.db("app");
 
-    // Obtener todas las tareas asignadas al usuario
     const total = await db.collection("tasks").countDocuments({
       assignedTo: email,
     });
 
-    // Obtener tareas completadas
     const completed = await db.collection("tasks").countDocuments({
       assignedTo: email,
       status: "done",

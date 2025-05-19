@@ -15,22 +15,18 @@ export default function AddProjectForm() {
   const { data: session } = useSession();
   const router = useRouter();
   
-  // Estados para el formulario
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [deadline, setDeadline] = useState("");
-  const [category, setCategory] = useState("general");
   const [users, setUsers] = useState<string[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   
-  // Estados para UI
   const [loading, setLoading] = useState(false);
   const [formErrors, setFormErrors] = useState({
     name: false,
     description: false
   });
   
-  // Cargar usuarios disponibles
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -57,16 +53,6 @@ export default function AddProjectForm() {
     }
   }, [session]);
 
-  // Categorías predefinidas para proyectos
-  const categories = [
-    { id: "general", name: "General" },
-    { id: "development", name: "Desarrollo" },
-    { id: "design", name: "Diseño" },
-    { id: "marketing", name: "Marketing" },
-    { id: "research", name: "Investigación" },
-  ];
-
-  // Validar el formulario
   const validateForm = () => {
     const errors = {
       name: !name.trim(),
@@ -77,7 +63,6 @@ export default function AddProjectForm() {
     return !Object.values(errors).some(Boolean);
   };
 
-  // Manejar selección de usuario
   const handleUserToggle = (email: string) => {
     setUsers(prevUsers => {
       if (prevUsers.includes(email)) {
@@ -88,7 +73,6 @@ export default function AddProjectForm() {
     });
   };
 
-  // Manejar envío del formulario
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -105,7 +89,6 @@ export default function AddProjectForm() {
     setLoading(true);
     
     try {
-      // Incluir al creador del proyecto automáticamente
       const projectUsers = [
         ...(session?.user?.email ? [session.user.email] : []),
         ...users
@@ -121,7 +104,6 @@ export default function AddProjectForm() {
           description,
           users: projectUsers,
           deadline: deadline || undefined,
-          category,
           status: "active"
         }),
       });
@@ -156,7 +138,6 @@ export default function AddProjectForm() {
       
       <form onSubmit={handleSubmit}>
         <div className="space-y-6">
-          {/* Información básica */}
           <div className="border-b border-gray-200 pb-6">
             <h2 className="text-lg font-medium mb-4">Información básica</h2>
             
@@ -182,24 +163,6 @@ export default function AddProjectForm() {
                     Este campo es obligatorio
                   </p>
                 )}
-              </div>
-              
-              <div>
-                <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
-                  Categoría
-                </label>
-                <select
-                  id="category"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
               </div>
               
               <div className="md:col-span-2">
@@ -231,7 +194,6 @@ export default function AddProjectForm() {
             </div>
           </div>
           
-          {/* Selección de usuarios */}
           <div className="border-b border-gray-200 pb-6">
             <h2 className="text-lg font-medium mb-4">Añadir miembros al proyecto</h2>
             
@@ -296,7 +258,6 @@ export default function AddProjectForm() {
             )}
           </div>
           
-          {/* Botones de acción */}
           <div className="flex justify-end space-x-3">
             <button
               type="button"

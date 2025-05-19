@@ -11,7 +11,6 @@ import {
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 
-// Componente para las secciones con animación de entrada
 const AnimatedSection = ({
   children,
   className = "",
@@ -37,7 +36,6 @@ const AnimatedSection = ({
   );
 };
 
-// También modificamos el componente FeatureCard para transiciones más suaves
 const FeatureCard = ({
   icon,
   title,
@@ -59,11 +57,11 @@ const FeatureCard = ({
           : "hover:ring-1 hover:ring-blue-200 shadow-md"
       }`}
       animate={{ 
-        y: isActive ? -3 : 0, // Movimiento sutil hacia arriba cuando está activo
+        y: isActive ? -3 : 0,
       }}
       transition={{ 
         duration: 0.7,
-        ease: [0.22, 1, 0.36, 1] // Curva bezier suave para efecto de trazo
+        ease: [0.22, 1, 0.36, 1] 
       }}
       layout
     >
@@ -79,20 +77,18 @@ const FeatureCard = ({
         {description}
       </p>
       
-      {/* Indicador sutil de tarjeta activa */}
       <motion.div 
         className="absolute -bottom-0.5 left-0 right-0 mx-auto h-0.5 rounded-full bg-blue-500/60"
         animate={{ 
           width: isActive ? "50%" : "0%",
           opacity: isActive ? 1 : 0
         }}
-        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }} // Curva suave para efecto de trazo
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }} 
       />
     </motion.div>
   );
 };
 
-// Componente para imágenes con animación paralax mejorado
 const ParallaxImage = ({
   className,
   imageUrl,
@@ -133,7 +129,6 @@ const ParallaxImage = ({
   );
 };
 
-// Componente para el indicador de progreso (bola en rieles)
 const ProgressTracker = () => {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30 });
@@ -146,7 +141,6 @@ const ProgressTracker = () => {
   );
 };
 
-// Modificaciones al componente FeaturesCarousel para un movimiento más suave
 
 const FeaturesCarousel = ({ features } : {features: any}) => {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -159,7 +153,6 @@ const FeaturesCarousel = ({ features } : {features: any}) => {
   const [viewportWidth, setViewportWidth] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
-  // Determine how many items to show based on screen size
   const getItemsToShow = useCallback(() => {
     if (viewportWidth >= 1280) return 5;
     if (viewportWidth >= 1024) return 3;
@@ -170,47 +163,41 @@ const FeaturesCarousel = ({ features } : {features: any}) => {
 
   const itemsToShow = getItemsToShow();
 
-  // Update viewport size on mount and resize
   useEffect(() => {
     const handleResize = () => {
       setViewportWidth(window.innerWidth);
     };
 
-    handleResize(); // Initial call
+    handleResize(); 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Auto avance del carrusel con transición más suave
   useEffect(() => {
     if (!isAutoPlaying || isPaused || isTransitioning) return;
 
     const timer = setInterval(() => {
       nextSlide();
-    }, 5000); // Tiempo ligeramente más largo para apreciar cada tarjeta
+    }, 5000); 
 
     return () => clearInterval(timer);
   }, [currentIndex, isAutoPlaying, isPaused, isTransitioning]);
 
-  // Función mejorada para transición más suave
   const nextSlide = () => {
     if (isTransitioning) return;
 
     setIsTransitioning(true);
     setDirection(1);
 
-    // Usamos setTimeout para crear un pequeño retraso visual
     setTimeout(() => {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % features.length);
 
-      // Esperar a que termine la animación antes de permitir otra transición
       setTimeout(() => {
         setIsTransitioning(false);
-      }, 700); // Ajustar según la duración de la transición
+      }, 700);
     }, 50);
   };
 
-  // Función mejorada para transición más suave
   const prevSlide = () => {
     if (isTransitioning) return;
 
@@ -242,12 +229,10 @@ const FeaturesCarousel = ({ features } : {features: any}) => {
     if (isTransitioning) return;
 
     if (touchStart - touchEnd > 75) {
-      // Deslizar a la izquierda
       nextSlide();
     }
 
     if (touchStart - touchEnd < -75) {
-      // Deslizar a la derecha
       prevSlide();
     }
   };
@@ -267,16 +252,13 @@ const FeaturesCarousel = ({ features } : {features: any}) => {
     }, 50);
   };
 
-  // Calcular qué elementos son visibles con mayor sutileza
   const getVisibleFeatures = useCallback(() => {
     let visibleItems = [];
-    // Cantidad de elementos antes y después del elemento activo
     const itemsOnEachSide = Math.floor(itemsToShow / 2);
 
     for (let i = -itemsOnEachSide; i <= itemsOnEachSide; i++) {
       let index = currentIndex + i;
 
-      // Manejo de desbordamiento circular
       if (index < 0) index = features.length + index;
       if (index >= features.length) index = index % features.length;
 
@@ -284,7 +266,6 @@ const FeaturesCarousel = ({ features } : {features: any}) => {
         feature: features[index],
         index,
         isActive: i === 0,
-        // Calcular la distancia desde el elemento activo para escalado proporcional
         distance: Math.abs(i),
       });
     }
@@ -292,7 +273,6 @@ const FeaturesCarousel = ({ features } : {features: any}) => {
     return visibleItems;
   }, [currentIndex, features, itemsToShow]);
 
-  // Dots indicator con transición más suave
   const renderDots = () => {
     return (
       <div className="flex justify-center space-x-2 mt-8">
@@ -307,7 +287,7 @@ const FeaturesCarousel = ({ features } : {features: any}) => {
               width: index === currentIndex ? 20 : 8,
               backgroundColor: index === currentIndex ? "#2563eb" : "#93c5fd",
             }}
-            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }} // Curva bezier para trazo suave
+            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }} 
           >
             <motion.div
               className="absolute inset-0 bg-blue-400 rounded-full opacity-0"
@@ -322,7 +302,6 @@ const FeaturesCarousel = ({ features } : {features: any}) => {
 
   return (
     <div className="relative py-12 px-4 overflow-hidden">
-      {/* Control izquierdo con efectos más suaves */}
       <motion.button
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
@@ -348,10 +327,9 @@ const FeaturesCarousel = ({ features } : {features: any}) => {
         </svg>
       </motion.button>
 
-      {/* Contenedor de las tarjetas con transiciones más suaves */}
       <div
         ref={carouselRef}
-        className="" // Asegura que el contenido no desborde
+        className="" 
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -368,18 +346,16 @@ const FeaturesCarousel = ({ features } : {features: any}) => {
                   className={`flex-shrink-0 w-56 sm:w-64 md:w-72 transition-all`}
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{
-                    // Mayor contraste entre la tarjeta activa y las inactivas
                     opacity: isActive ? 1 : 0.6 - distance * 0.1,
                     scale: isActive ? 1 : 0.88 - distance * 0.03,
                     filter: isActive
                       ? "blur(0px)"
                       : `blur(${distance * 0.7}px)`,
-                    // Movimiento horizontal para efecto de trazo
                     x: direction * (isActive ? 0 : distance * 5),
                   }}
                   transition={{
-                    duration: 0.9, // Transición más lenta para un movimiento más suave
-                    ease: [0.25, 0.1, 0.25, 1], // Curva ease-out más suave
+                    duration: 0.9,
+                    ease: [0.25, 0.1, 0.25, 1],
                     opacity: { duration: 1.2 },
                     scale: { duration: 0.9 },
                     filter: { duration: 1 },
@@ -400,7 +376,6 @@ const FeaturesCarousel = ({ features } : {features: any}) => {
         </motion.div>
       </div>
 
-      {/* Control derecho */}
       <motion.button
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
@@ -426,7 +401,6 @@ const FeaturesCarousel = ({ features } : {features: any}) => {
         </svg>
       </motion.button>
 
-      {/* Indicadores de posición con transición más suave */}
       {renderDots()}
 
     
@@ -440,7 +414,6 @@ export default function Home() {
   const { scrollYProgress } = useScroll();
   const ballX = useTransform(scrollYProgress, [0, 1], ["0%", "93%"]);
 
-  // Cambiar el estilo del navbar al hacer scroll
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
@@ -451,10 +424,7 @@ export default function Home() {
 
   return (
     <>
-      {/* Indicador de progreso */}
       <ProgressTracker />
-
-      {/* Navbar con animación */}
       <motion.nav
         className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 px-6 py-4 ${
           isScrolled ? "bg-white shadow-md" : "bg-transparent"
@@ -477,7 +447,6 @@ export default function Home() {
                 xmlns="http://www.w3.org/2000/svg"
                 className="fill-current"
               >
-                {/* Cuerpo principal de FlowPilot (estilizado como "F") */}
                 <path d="M200 134c4.6 0 9.2-.1 13.8-.2 6.4 0 10.8.6 15.9 4.7 1.9 2.3 1.8 3.9 1.8 6.8a97 97 0 0 1-.2 9.5c.1 4.8 0 9.5.1 14.3 0 8.3 0 16.5-.2 24.8-2.1 8.2-2.1 8.2-4.2 12-5.5 4.5-9.8 5.4-16.7 5.1-3.6-.1-7.2-.3-10.8-.4.1 1.2.1 2.4.2 3.7.3 7.9.5 15.8.8 23.7.1 3.9.2 7.7.4 11.6-.1 1.9-.1 1.9-1.1 4.9h22c3.3 0 6.7 0 10.2 0 3.9 0 7.8-.1 11.8-.1h3.7c7 0 7 0 13-3.1a31 31 0 0 0 7.3-7c1.9-2.3 3.8-4.6 5.6-6.9 5-1.5 7.3-1.1 10.7 2.2 1.4 1.9 1.4 1.9 1.4 5.9h-2c-.4.9-.4.9-.8 1.7-4.4 8.1-12.4 15-20.4 19.5-2.9.8-2.9.8-12.9.8v34c4.6 0 9.2 0 13.9 0 4.8 1.4 7.4 2.7 10 7a70 70 0 0 1 .6 21c.1 6.7.1 13.4.2 20.1.1 7.6.1 15.2-.1 22.8-.2 6-1.1 9.5-5.2 13.9-4.6 3.2-10.8 2.4-16.2 2.4h-2a290 290 0 0 1-26.3.1H247.4c-5.9 0-11.4-.4-16.5-3.8-2.3-3.5-2.4-6.2-2.6-10.2v-21.4c-.1-5.3-.1-10.6-.2-15.9-.1-1.1-.1-1.1-.1-2.2.3-8.2.3-8.2 2.9-11.8 7.1-6 13.4-4.4 22.8-4.4v-34h-84v33c5 .3 9.9.7 15 1 4.6 1.3 6.3 2.2 9.4 5.8 4.3 8.4 2.8 18.9 2.6 28a192 192 0 0 1-.3 24.6c-.1.9-.1.9-.1 1.9-.1 5.7-1.2 9-5.2 13.1-2.3 1.8-3.7 2.2-6.6 2.3-2.5.1-5 .1-7.5.1h-2.7a315 315 0 0 1-28.9.1h-2.6c-6.3 0-11.5-.6-17-4.1-3.2-4.7-2.8-9.2-2.7-14.8v-4.6a1082 1082 0 0 0 0-18.2c0-5 0-10 0-15v-2.9c.1-7.6.1-7.6 2.5-11.5 2.3-2 3.9-2.9 6.8-3.7.8-.2 1.6-.5 2.4-.7 2.6-.4 4.9-.5 7.6-.5h2.4c.9 0 .9 0 1.9.1a481 481 0 0 1-.5-23.6c-.1-3.9-.1-7.9-.1-11.8-.1-1.8-.1-1.8-.2-3.9 0-4.1.4-6.9 1.8-10.7 4.2-3.8 8.3-3.3 13.8-3.3h3.5a399 399 0 0 0 24.2-.9c.3-13.9.7-27.7 1-42h-19c-5 0-5 0-7-3a127 127 0 0 1-.3-13c0-3.8 0-3.8-.1-5.7 0-5.1-.1-10.2-.1-15.3 0-7.8-.1-15.5-.2-23.3 0-2.5-.1-4.9-.1-7.4l-.1-1.9c0-9 0-9 3-12 3.5-2.4 5.2-3 9.3-2.9z" />
 
                 {/* Avión */}
@@ -510,11 +479,9 @@ export default function Home() {
         </div>
       </motion.nav>
 
-      {/* Hero Section con animación */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 text-white">
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-900/90 to-purple-900/90 z-10"></div>
-          {/* Partículas animadas de fondo */}
           {Array.from({ length: 20 }).map((_, i) => (
             <motion.div
               key={i}
@@ -609,7 +576,6 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* Sección de características con efectos 3D */}
       <section
         id="features"
         className="py-20 bg-gradient-to-b from-white to-blue-50"
@@ -754,7 +720,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Sección de capturas de pantalla con paralaje */}
       <section className="py-20 bg-gradient-to-b from-blue-50 to-white">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
@@ -814,9 +779,7 @@ export default function Home() {
               </p>
             </AnimatedSection>
 
-            {/* Collage de 3 imágenes que muestran las características clave del proyecto */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-              {/* Imagen de información general del proyecto - más grande a la izquierda */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -832,9 +795,7 @@ export default function Home() {
                 />
               </motion.div>
 
-              {/* Columna derecha con chat y estadísticas */}
               <div className="space-y-4 md:space-y-6">
-                {/* Chat en tiempo real */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -853,7 +814,6 @@ export default function Home() {
                   </p>
                 </motion.div>
 
-                {/* Estadísticas del proyecto */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -874,7 +834,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Etiquetas explicativas */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 text-center">
               <div className="md:col-span-2">
                 <p className="text-sm font-medium text-blue-600">
@@ -886,7 +845,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Sección de testimonios con efecto carrusel */}
       <section className="py-20 bg-gradient-to-b from-white to-blue-50">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
@@ -965,7 +923,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Sección de llamada a la acción */}
       <section className="py-20 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
         <div className="container mx-auto px-6">
           <div className="text-center">
@@ -994,7 +951,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="bg-blue-900 text-white py-10">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">

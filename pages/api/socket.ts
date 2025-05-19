@@ -10,8 +10,6 @@ export const config = {
     bodyParser: false,
   },
 };
-
-// En lugar de extender NextApiRequest, creamos una interfaz independiente
 export interface NextApiRequestWithSocket
   extends Omit<NextApiRequest, "socket"> {
   socket: {
@@ -21,7 +19,6 @@ export interface NextApiRequestWithSocket
   };
 }
 
-// Hacemos lo mismo para el response
 export interface NextApiResponseWithSocket
   extends Omit<NextApiResponse, "socket"> {
   socket: {
@@ -51,7 +48,6 @@ interface TaskUpdateData {
   task: any;
 }
 
-// Almacenar usuarios conectados por proyecto
 const connectedUsers: Record<string, Set<string>> = {};
 
 export default async function handler(
@@ -67,9 +63,7 @@ export default async function handler(
   try {
     console.log("Configurando Socket.IO...");
 
-    // Configuración importante: Socket.IO debe usar el path exacto /socket.io
     const io = new Server(res.socket.server, {
-      // NO configurar path aquí - usar path por defecto /socket.io
       cors: {
         origin: "*",
         methods: ["GET", "POST", "OPTIONS"],
@@ -81,12 +75,10 @@ export default async function handler(
       transports: ["polling", "websocket"],
     });
 
-    // Guardar la instancia en el servidor
     res.socket.server.io = io;
 
     console.log("Socket.IO inicializado correctamente");
 
-    // Configurar namespace para chat
     const chatNamespace = io.of("/chat");
 
     chatNamespace.on("connection", (socket: Socket) => {
@@ -150,7 +142,6 @@ export default async function handler(
             timestamp,
           };
 
-          // Emitir a todos en el proyecto
           chatNamespace.to(projectId).emit("newMessage", savedMessage);
           console.log(`Mensaje enviado a sala ${projectId}`);
         } catch (error) {
@@ -170,7 +161,6 @@ export default async function handler(
       });
     });
 
-    // Configurar namespace para tablero kanban
     const kanbanNamespace = io.of("/kanban");
 
     kanbanNamespace.on("connection", (socket: Socket) => {
@@ -197,10 +187,8 @@ export default async function handler(
           const roomName = `sync-${projectId}`;
           console.log(`📋 Actualización de tarea en ${roomName}:`, task.id);
 
-          // Emitir a todos en la sala
           kanbanNamespace.to(roomName).emit("taskUpdated", task);
 
-          // Confirmar al emisor
           socket.emit("taskUpdateConfirmed", { taskId: task.id });
         } catch (error) {
           console.error("Error en updateTask:", error);
@@ -221,7 +209,6 @@ export default async function handler(
       });
     });
 
-    // Añadir un nuevo namespace para presencia
     const presenceNamespace = io.of("/presence");
 
     presenceNamespace.on("connection", (socket: Socket) => {
@@ -229,67 +216,56 @@ export default async function handler(
       let currentUserEmail: string | null = null;
       let currentProjectId: string | null = null;
 
-      // Cuando un usuario se une a un proyecto
       socket.on("userJoined", ({ projectId, userEmail, userName }) => {
         if (!projectId || !userEmail) return;
 
-        currentUserEmail = userEmail.toLowerCase().trim(); // Normalizar el email
+        currentUserEmail = userEmail.toLowerCase().trim();
         currentProjectId = projectId;
 
-        // Log para depuración
         console.log(
           `👤 Usuario ${currentUserEmail} conectado al proyecto ${projectId}`
         );
 
-        // Inicializar el conjunto si no existe
         if (!connectedUsers[projectId]) {
           connectedUsers[projectId] = new Set();
         }
 
-        // Añadir usuario al proyecto (solo si no es null)
         if (currentUserEmail) {
           connectedUsers[projectId].add(currentUserEmail);
         }
 
-        // Emitir lista actualizada a todos en el proyecto
         const usersInProject = Array.from(connectedUsers[projectId]);
         console.log(
           `🔄 Emitiendo usersOnline con: ${usersInProject.length} usuarios`
         );
 
-        // Emitir al cliente que acaba de unirse primero (para respuesta inmediata)
         socket.emit("usersOnline", usersInProject);
 
-        // Luego emitir a todos los demás en la sala
         socket.to(projectId).emit("usersOnline", usersInProject);
 
-        // Unir el socket a la sala del proyecto
         socket.join(projectId);
       });
 
-      // Heartbeat para mantener activa la sesión
       socket.on("heartbeat", ({ userEmail, projectId }) => {
-        // Se puede usar para actualizar timestamps de actividad si es necesario
         if (
           userEmail &&
           projectId &&
           connectedUsers[projectId]?.has(userEmail)
         ) {
-          // Actualizar timestamp de último heartbeat si se implementa
+          console.log(
+            `💓 Heartbeat recibido de ${userEmail} en proyecto ${projectId}`
+          );
         }
       });
 
-      // Cuando un usuario se desconecta
       socket.on("disconnect", () => {
         if (
           currentProjectId &&
           currentUserEmail &&
           connectedUsers[currentProjectId]
         ) {
-          // Eliminar usuario del proyecto
           connectedUsers[currentProjectId].delete(currentUserEmail);
 
-          // Emitir lista actualizada
           const usersInProject = Array.from(connectedUsers[currentProjectId]);
           presenceNamespace
             .to(currentProjectId)
@@ -303,7 +279,6 @@ export default async function handler(
             usersInProject
           );
 
-          // Limpiar conjuntos vacíos para evitar fugas de memoria
           if (connectedUsers[currentProjectId].size === 0) {
             delete connectedUsers[currentProjectId];
           }

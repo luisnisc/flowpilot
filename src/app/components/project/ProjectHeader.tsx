@@ -11,7 +11,6 @@ interface ProjectHeaderProps {
   name: string;
   description: string;
   isAdmin: boolean;
-  category?: string;
   deadline?: string;
   status?: string;
 }
@@ -21,31 +20,24 @@ export default function ProjectHeader({
   name,
   description,
   isAdmin,
-  category: initialCategory = "general",
   status: initialStatus = "active",
 }: ProjectHeaderProps) {
   const router = useRouter();
   const { data: session } = useSession();
 
-  // Estado para controlar la visibilidad del modal
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // Estados para el formulario
   const [formName, setFormName] = useState(name);
   const [formDescription, setFormDescription] = useState(description);
-  const [formCategory, setFormCategory] = useState(initialCategory);
   const [formStatus, setFormStatus] = useState(initialStatus);
 
-  // Estado para el proceso de guardado
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Cuando cambian las props, actualizar los estados
   useEffect(() => {
     if (showEditModal) {
       setFormName(name);
       setFormDescription(description);
-      setFormCategory(initialCategory);
       setFormStatus(initialStatus);
 
     }
@@ -53,7 +45,6 @@ export default function ProjectHeader({
     showEditModal,
     name,
     description,
-    initialCategory,
     initialStatus,
   ]);
 
@@ -86,7 +77,6 @@ export default function ProjectHeader({
         body: JSON.stringify({
           name: formName,
           description: formDescription,
-          category: formCategory,
           status: formStatus,
         }),
       });
@@ -115,14 +105,7 @@ export default function ProjectHeader({
     }
   };
 
-  // Categorías predefinidas para proyectos
-  const categories = [
-    { id: "general", name: "General" },
-    { id: "development", name: "Desarrollo" },
-    { id: "design", name: "Diseño" },
-    { id: "marketing", name: "Marketing" },
-    { id: "research", name: "Investigación" },
-  ];
+ 
 
   const statusOptions = [
     { id: "active", name: "Activo" },
@@ -139,10 +122,7 @@ export default function ProjectHeader({
           <h1 className="text-2xl font-bold">{name || "Cargando..."}</h1>
           <p className="text-gray-600 mb-4 md:mb-0">{description || ""}</p>
         </div>
-
-        {/* Botones de acción */}
         <div className="flex flex-wrap gap-2">
-          {/* Botón para añadir tarea (todos los usuarios) */}
           <Link href={`/addTask?projectId=${id}`}>
             <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center text-sm">
               <svg
@@ -162,7 +142,6 @@ export default function ProjectHeader({
             </button>
           </Link>
 
-          {/* Botones solo para administradores */}
           {isAdmin && (
             <button
               onClick={handleEditClick}
@@ -175,11 +154,9 @@ export default function ProjectHeader({
         </div>
       </div>
 
-      {/* Modal para editar proyecto */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            {/* Cabecera del modal */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 text-white rounded-t-lg flex justify-between items-center">
               <h2 className="text-xl font-bold">Editar proyecto</h2>
               <button
@@ -191,10 +168,8 @@ export default function ProjectHeader({
               </button>
             </div>
 
-            {/* Contenido del modal */}
             <div className="p-6">
               <form onSubmit={handleSubmit}>
-                {/* Mostrar errores si hay */}
                 {formError && (
                   <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
                     <div className="flex">
@@ -208,7 +183,6 @@ export default function ProjectHeader({
                   </div>
                 )}
 
-                {/* Campos del formulario */}
                 <div className="space-y-4">
                   <div>
                     <label
@@ -228,26 +202,7 @@ export default function ProjectHeader({
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label
-                        htmlFor="category"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        Categoría
-                      </label>
-                      <select
-                        id="category"
-                        value={formCategory}
-                        onChange={(e) => setFormCategory(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        {categories.map((cat) => (
-                          <option key={cat.id} value={cat.id}>
-                            {cat.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+              
 
                     <div>
                       <label
@@ -292,7 +247,6 @@ export default function ProjectHeader({
                   </div>
                 </div>
 
-                {/* Botones de acción */}
                 <div className="mt-6 flex justify-end space-x-3">
                   <button
                     type="button"

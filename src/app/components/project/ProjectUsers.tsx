@@ -274,7 +274,6 @@ export default function ProjectUsers({
                     </div>
                   </div>
 
-                  {/* Botón de eliminar - solo visible para administradores y no para usuarios admin */}
                   {isAdmin && !isUserAnAdmin && (
                     <button
                       onClick={() => handleRemoveUser(email)}
@@ -382,7 +381,6 @@ export default function ProjectUsers({
               </div>
             </div>
 
-            {/* Avatares apilados para efecto visual */}
             <div className="flex -space-x-2 overflow-hidden mt-3">
               {users.slice(0, 5).map((user, index) => {
                 let userImage = "";

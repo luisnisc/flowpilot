@@ -53,7 +53,6 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
           text: "¡Contraseña actualizada con éxito! Serás redirigido para iniciar sesión...",
         });
 
-        // Redirigir después de un breve retraso
         setTimeout(() => {
           router.push("/login");
         }, 3000);

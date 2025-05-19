@@ -21,12 +21,10 @@ export default async function handler(
     const client = await clientPromise;
     const db = client.db("app");
 
-    // Buscar usuario por email
     const user = await db
       .collection("users")
       .findOne({ email: email.toLowerCase() });
 
-    // Por seguridad, no revelamos si el email existe o no
     if (!user) {
       return res.status(200).json({
         message:
@@ -34,11 +32,9 @@ export default async function handler(
       });
     }
 
-    // Generar token único y establecer fecha de expiración (1 hora)
     const resetToken = randomBytes(32).toString("hex");
-    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hora en milisegundos
+    const resetTokenExpiry = new Date(Date.now() + 3600000); 
 
-    // Guardar token en la base de datos
     await db.collection("users").updateOne(
       { email: email.toLowerCase() },
       {
@@ -49,21 +45,11 @@ export default async function handler(
       }
     );
 
-    // URL del frontend para restablecer la contraseña
     const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
     const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
 
-    // En modo desarrollo, mostrar información en la consola para depuración
-    console.log("============================================");
-    console.log("Información de restablecimiento de contraseña:");
-    console.log("Email:", email);
-    console.log("Token:", resetToken);
-    console.log("URL:", resetUrl);
-    console.log("Expira:", resetTokenExpiry);
-    console.log("============================================");
 
     try {
-      // Verificar que la API key está configurada
       const apiKey = process.env.SENDGRID_API_KEY;
       if (!apiKey) {
         console.error(
@@ -72,13 +58,11 @@ export default async function handler(
         throw new Error("SENDGRID_API_KEY no configurada");
       }
 
-      // Configurar SendGrid con la API key
       sgMail.setApiKey(apiKey);
 
       const sender = process.env.EMAIL_FROM || "noreply@flow-pilot.dev";
       console.log("Intentando enviar email desde:", sender);
 
-      // Preparar el mensaje
       const msg = {
         to: email,
         from: sender,
@@ -99,7 +83,6 @@ export default async function handler(
         `,
       };
 
-      // Enviar email y manejar la respuesta
       console.log("Enviando email...");
       const response = await sgMail.send(msg);
       console.log(
@@ -107,30 +90,16 @@ export default async function handler(
         response[0].statusCode
       );
 
-      // Si estamos en desarrollo, devolver información adicional
-      if (process.env.NODE_ENV === "development") {
-        return res.status(200).json({
-          message:
-            "Email enviado correctamente. Revisa la consola para más detalles.",
-          success: true,
-          devInfo: {
-            resetToken,
-            resetUrl,
-            expiresAt: resetTokenExpiry,
-          },
-        });
-      }
+     
     } catch (emailError: any) {
       console.error("Error al enviar email con SendGrid:", emailError);
 
-      // Detalles específicos del error para depuración
       if (emailError.response) {
         console.error("Detalles del error:");
         console.error("  Status:", emailError.response.status);
         console.error("  Body:", emailError.response.body);
       }
 
-      // En desarrollo, proporcionar información más detallada
       if (process.env.NODE_ENV === "development") {
         return res.status(200).json({
           message:
@@ -145,7 +114,6 @@ export default async function handler(
       }
     }
 
-    // Respuesta estándar para producción (o si falla el envío en desarrollo)
     return res.status(200).json({
       message:
         "Si existe una cuenta con este email, recibirás instrucciones para restablecer tu contraseña.",

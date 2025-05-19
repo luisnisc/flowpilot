@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 
-// Importación dinámica para evitar problemas de SSR
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 interface TaskStats {
@@ -46,7 +45,6 @@ export default function ProjectStats({ projectId }: ProjectStatsProps) {
     { id: "created", name: "Tareas Creadas", color: "#F59E0B" },
     { id: "inProgress", name: "En Progreso", color: "#3B82F6" },
     { id: "inReview", name: "En Revisión", color: "#8B5CF6" },
-    { id: "comments", name: "Comentarios", color: "#EC4899" },
     { id: "activity", name: "Actividad Total", color: "#6D28D9" },
   ];
 
@@ -54,7 +52,6 @@ export default function ProjectStats({ projectId }: ProjectStatsProps) {
     const loadStatsData = async () => {
       setIsLoading(true);
       try {
-        // Obtener estadísticas de tareas
         const tasksResponse = await fetch(
           `/api/stats/tasks?projectId=${projectId}`
         );
@@ -66,7 +63,6 @@ export default function ProjectStats({ projectId }: ProjectStatsProps) {
             "Error cargando estadísticas de tareas:",
             await tasksResponse.text()
           );
-          // Establecer datos predeterminados en caso de error
           setTaskStats({
             pending: 1,
             in_progress: 1,
@@ -75,7 +71,6 @@ export default function ProjectStats({ projectId }: ProjectStatsProps) {
           });
         }
 
-        // Obtener datos de timeline
         const timelineResponse = await fetch(
           `/api/stats/timeline?projectId=${projectId}`
         );
@@ -87,7 +82,6 @@ export default function ProjectStats({ projectId }: ProjectStatsProps) {
             "Error cargando timeline:",
             await timelineResponse.text()
           );
-          // Establecer datos predeterminados en caso de error
           setTaskTimeline(
             Array.from({ length: 14 }).map((_, i) => ({
               date: `05-${i + 1}`,
@@ -102,7 +96,6 @@ export default function ProjectStats({ projectId }: ProjectStatsProps) {
         }
       } catch (error) {
         console.error("Error cargando estadísticas:", error);
-        // Establecer datos predeterminados
         setTaskStats({
           pending: 1,
           in_progress: 1,
@@ -128,11 +121,9 @@ export default function ProjectStats({ projectId }: ProjectStatsProps) {
     loadStatsData();
   }, [projectId]);
 
-  // Maneja el cambio en las métricas seleccionadas
   const handleMetricToggle = (metricId: string) => {
     setSelectedMetrics((prev) => {
       if (prev.includes(metricId)) {
-        // Evitar que se deseleccionen todas las métricas
         if (prev.length === 1) return prev;
         return prev.filter((m) => m !== metricId);
       } else {
@@ -141,7 +132,6 @@ export default function ProjectStats({ projectId }: ProjectStatsProps) {
     });
   };
 
-  // Opciones para el gráfico circular de estado de tareas
   const taskStatusOptions = {
     chart: {
       type: "donut" as const,
@@ -194,7 +184,6 @@ export default function ProjectStats({ projectId }: ProjectStatsProps) {
     taskStats.done,
   ];
 
-  // Opciones para el gráfico de línea de tareas a lo largo del tiempo
   const timelineOptions = {
     chart: {
       height: 350,
@@ -280,7 +269,6 @@ export default function ProjectStats({ projectId }: ProjectStatsProps) {
     },
   };
 
-  // Generar series dinámicamente basado en métricas seleccionadas
   const timelineSeries = selectedMetrics.map((metricId) => {
     const metric = availableMetrics.find((m) => m.id === metricId);
     return {
@@ -291,7 +279,6 @@ export default function ProjectStats({ projectId }: ProjectStatsProps) {
     };
   });
 
-  // Gráfico de progreso del proyecto (medidor)
   const totalTasks =
     taskStats.pending +
     taskStats.in_progress +
@@ -382,7 +369,6 @@ export default function ProjectStats({ projectId }: ProjectStatsProps) {
     <div className="bg-white p-4 md:p-6 rounded-lg shadow">
       <h2 className="text-xl font-bold mb-6">Estadísticas del Proyecto</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Gráfico circular de estado de tareas */}
         <div className="bg-gray-100 p-4 rounded-lg shadow-sm">
           <h3 className="text-lg font-semibold mb-4">Estado de Tareas</h3>
           <Chart
@@ -393,7 +379,6 @@ export default function ProjectStats({ projectId }: ProjectStatsProps) {
           />
         </div>
 
-        {/* Gráfico de progreso del proyecto */}
         <div className="bg-gray-100 p-4 rounded-lg shadow-sm">
           <h3 className="text-lg font-semibold mb-4">Progreso General</h3>
           <Chart
@@ -404,7 +389,6 @@ export default function ProjectStats({ projectId }: ProjectStatsProps) {
           />
         </div>
 
-        {/* Gráfico de línea de tareas a lo largo del tiempo */}
         <div className="bg-gray-100 p-4 rounded-lg shadow-sm md:col-span-2">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Evolución Temporal</h3>

@@ -7,8 +7,6 @@ import SideBar from "./SideBar";
 import Chat from "./Chat";
 import useProjectSync from "@/hooks/useProjectSync";
 import usePresence from "@/hooks/usePresence";
-
-// Importamos los nuevos componentes modulares
 import KanbanBoard from "./project/kanban/KanbanBoard";
 import ProjectStats from "./project/stats/ProjectStats";
 import ProjectUsers from "./project/ProjectUsers";
@@ -88,7 +86,6 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
     emptyColumns
   );
 
-  // Hook para rastrear usuarios en línea
   const userEmail = session?.user?.email;
   const userName = session?.user?.name;
   const { onlineUsers, isConnected: presenceConnected } = usePresence(
@@ -97,14 +94,12 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
     userName || ""
   );
 
-  // Estado para las pestañas
   const [activeTab, setActiveTab] = useState<"kanban" | "chat" | "stats">(
     "kanban"
   );
 
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Cargar datos del proyecto y tareas
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
@@ -114,14 +109,12 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
     if (status === "authenticated" && session?.user?.email) {
       fetchProjectData();
 
-      // Verificar si el usuario es administrador
       if (session?.user?.role === "admin") {
         setIsAdmin(true);
       }
     }
   }, [status, id, session]);
 
-  // Función para obtener datos del proyecto
   const fetchProjectData = async () => {
     try {
       const projectsRes = await fetch("/api/projects", {
@@ -202,7 +195,6 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
     }
   };
 
-  // Manejar el arrastre y soltar de tareas
   const onDragEnd = (result: DropResult) => {
     const { destination, source, draggableId } = result;
 
@@ -215,7 +207,6 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
     }
 
     try {
-      // Mapeo explícito de columnas a estados
       const columnToStatus: Record<
         string,
         "pending" | "in_progress" | "review" | "done"
@@ -226,7 +217,6 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
         done: "done",
       };
 
-      // Obtener la tarea que se está moviendo
       const sourceColumn = columns[source.droppableId as keyof typeof columns];
       const taskToMove = sourceColumn.find((task) => task.id === draggableId);
 
@@ -235,10 +225,8 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
         return;
       }
 
-      // Obtener el nuevo estado basado en la columna de destino
       const newStatus = columnToStatus[destination.droppableId];
 
-      // Llamar a updateTask que manejará la actualización del estado
       updateTask(taskToMove.id, newStatus, taskToMove);
     } catch (error) {
       console.error("Error en onDragEnd:", error);
@@ -279,7 +267,6 @@ export default function ProjectDetails({ id }: ProjectDetailsProps) {
 
         <ProjectTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
-        {/* Contenido de la pestaña seleccionada */}
         {activeTab === "kanban" && (
           <div>
           <KanbanBoard columns={columns} onDragEnd={onDragEnd} />

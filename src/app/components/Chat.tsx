@@ -3,24 +3,20 @@ import { useState, useEffect, useRef } from "react";
 import useChat from "@/hooks/useChat";
 import { useSession } from "next-auth/react";
 import { FaPaperPlane } from "react-icons/fa";
-import usePresence from "@/hooks/usePresence"; // Hook para obtener usuarios conectados
+import usePresence from "@/hooks/usePresence"; 
 
 export default function Chat({ projectId }: { projectId: string }) {
   const { data: session } = useSession();
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Usar nombre de usuario o email como fallback
   const userName = session?.user?.name || session?.user?.email || "Usuario";
   const userEmail = session?.user?.email || "";
 
-  // Obtener chat con ID de proyecto
   const { messages, connected, sendMessage, isLoading } = useChat(projectId);
 
-  // Obtener información de usuarios conectados
   const { onlineUsers } = usePresence(projectId, userEmail, userName);
 
-  // Auto-scroll al final cuando llegan nuevos mensajes
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
@@ -35,11 +31,10 @@ export default function Chat({ projectId }: { projectId: string }) {
     setMessage("");
   };
 
-  // Función para obtener información del usuario (avatar y estado de conexión)
   const getUserInfo = (username: string) => {
     const email = username.toLowerCase().trim();
-    const displayName = username.split("@")[0]; // Usar la parte antes de @ como nombre
-    const isOnline = onlineUsers.includes(email); // Verificar si está conectado
+    const displayName = username.split("@")[0]; 
+    const isOnline = onlineUsers.includes(email); 
     const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(
       displayName
     )}&background=random&color=fff&size=32`;
@@ -103,7 +98,6 @@ export default function Chat({ projectId }: { projectId: string }) {
                   isCurrentUser ? "justify-end" : ""
                 }`}
               >
-                {/* Avatar para mensajes de otros usuarios */}
                 {!isCurrentUser && (
                   <div className="relative flex-shrink-0 mr-2">
                     <img
@@ -146,7 +140,6 @@ export default function Chat({ projectId }: { projectId: string }) {
                   </div>
                 </div>
 
-                {/* Avatar para mensajes propios (a la derecha) */}
                 {isCurrentUser && (
                   <div className="relative flex-shrink-0 ml-2">
                     <img

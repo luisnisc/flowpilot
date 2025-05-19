@@ -13,9 +13,9 @@ import {
 interface Project {
   _id: string;
   name: string;
+  users: string[];
 }
 
-// Actualizar la interfaz para los usuarios
 interface User {
   email: string;
   name?: string;
@@ -80,7 +80,7 @@ export default function AddTaskForm() {
       }
 
       const data = await res.json();
-      console.log("Usuarios obtenidos:", data); // Para depuración
+      console.log("Usuarios obtenidos:", data); 
       setUsers(data);
     } catch (err) {
       console.error("Error fetching users:", err);
@@ -131,7 +131,6 @@ export default function AddTaskForm() {
     setError(null);
 
     try {
-      // Crear una copia del formData para asegurarse de que assignedTo tenga siempre un valor
       const dataToSubmit = {
         ...formData,
         assignedTo: formData.assignedTo || session?.user?.email || "",
@@ -264,32 +263,103 @@ export default function AddTaskForm() {
                     >
                       Proyecto <span className="text-red-500">*</span>
                     </label>
+
                     {projects.length > 0 ? (
-                      <select
-                        id="project"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                        value={formData.project}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            project: e.target.value,
-                          }))
-                        }
-                        required
-                      >
-                        {projects.map((proj) => (
-                          <option key={proj._id} value={proj._id}>
-                            {proj.name}
-                          </option>
-                        ))}
-                      </select>
+                      <>
+                        {projects.filter((proj) =>
+                          proj.users.includes(
+                            session?.user?.email || session?.user?.name || ""
+                          )
+                        ).length > 0 ? (
+                          <select
+                            id="project"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            value={formData.project}
+                            onChange={(e) =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                project: e.target.value,
+                              }))
+                            }
+                            required
+                          >
+                            {projects
+                              .filter((proj) =>
+                                proj.users.includes(
+                                  session?.user?.email ||
+                                    session?.user?.name ||
+                                    ""
+                                )
+                              )
+                              .map((proj) => (
+                                <option key={proj._id} value={proj._id}>
+                                  {proj.name}
+                                </option>
+                              ))}
+                          </select>
+                        ) : (
+                          <div className="flex items-center p-4 bg-blue-50 text-blue-800 border border-blue-200 rounded-md">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-5 w-5 mr-2 flex-shrink-0"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                            <div>
+                              <p className="font-medium">
+                                No estás asignado a ningún proyecto
+                              </p>
+                              <p className="text-sm mt-1">
+                                Solo puedes crear tareas en proyectos donde
+                                estés incluido como miembro. Contacta con un
+                                administrador para ser añadido a proyectos
+                                existentes o crea uno nuevo.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </>
                     ) : (
-                      <div className="flex items-center px-3 py-2 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-md">
-                        <FiAlertTriangle className="mr-2 flex-shrink-0" />
-                        <p className="text-sm">
-                          No hay proyectos disponibles. Crea un proyecto
-                          primero.
-                        </p>
+                      <div className="flex items-center p-4 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-md">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5 mr-2 flex-shrink-0"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                          />
+                        </svg>
+                        <div>
+                          <p className="font-medium">
+                            No hay proyectos disponibles
+                          </p>
+                          <p className="text-sm mt-1">
+                            No se encontraron proyectos en el sistema. Es
+                            necesario crear un proyecto antes de poder añadir
+                            tareas.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => router.push("/projects/new")}
+                            className="mt-2 text-sm font-medium text-yellow-700 hover:text-yellow-900 transition-colors underline"
+                          >
+                            Crear nuevo proyecto
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>

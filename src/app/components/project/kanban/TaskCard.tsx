@@ -95,7 +95,6 @@ export default function TaskCard({ task, index }: TaskCardProps) {
             {task.description}
           </p>
 
-          {/* Indicador visual cuando no se puede arrastrar */}
           {!canDrag && (
             <div className="mt-2 text-xs text-gray-500 flex items-center">
               <svg

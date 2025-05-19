@@ -27,7 +27,6 @@ interface KanbanBoardProps {
 }
 
 export default function KanbanBoard({ columns, onDragEnd }: KanbanBoardProps) {
-  // Log para depuración: Ver qué tareas están en cada columna
   useEffect(() => {
     console.log("Estado actual del tablero:", {
       backlog: columns.backlog.length,
@@ -36,7 +35,6 @@ export default function KanbanBoard({ columns, onDragEnd }: KanbanBoardProps) {
       done: columns.done.length,
     });
 
-    // Verificar específicamente las tareas en la columna review
     if (columns.review.length > 0) {
       console.log(
         "Tareas en review:",
@@ -49,11 +47,9 @@ export default function KanbanBoard({ columns, onDragEnd }: KanbanBoardProps) {
     }
   }, [columns]);
 
-  // Envolver onDragEnd para depurar
   const handleDragEnd = (result: DropResult) => {
     const { destination, source, draggableId } = result;
 
-    // Si no hay destino o no se movió, no hacemos nada
     if (
       !destination ||
       (destination.droppableId === source.droppableId &&
@@ -68,7 +64,6 @@ export default function KanbanBoard({ columns, onDragEnd }: KanbanBoardProps) {
       to: destination.droppableId,
     });
 
-    // Mapeo explícito para asegurar la conversión correcta
     const columnToStatus = {
       backlog: "pending",
       in_progress: "in_progress",
@@ -76,13 +71,11 @@ export default function KanbanBoard({ columns, onDragEnd }: KanbanBoardProps) {
       done: "done",
     };
 
-    // Verificar que la columna de destino sea válida
     if (!Object.keys(columnToStatus).includes(destination.droppableId)) {
       console.error("Columna de destino no válida:", destination.droppableId);
       return;
     }
 
-    // Verificar tarea que se está moviendo
     const taskBeingMoved = columns[source.droppableId].find(
       (task) => task.id === draggableId
     );
@@ -92,18 +85,15 @@ export default function KanbanBoard({ columns, onDragEnd }: KanbanBoardProps) {
       return;
     }
 
-    // Log de la conversión
     console.log("Conversión de columna a estado:", {
       columnaDestino: destination.droppableId,
       estadoResultante:
         columnToStatus[destination.droppableId as keyof typeof columnToStatus],
     });
 
-    // Llamar al onDragEnd original
     onDragEnd(result);
   };
 
-  // Configuración de las columnas con sus colores
   const columnConfig = [
     {
       id: "backlog",

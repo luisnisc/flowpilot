@@ -54,8 +54,6 @@ export default function Projects() {
 
       const data: Project[] = await res.json();
 
-      // Si el usuario es admin, muestra todos los proyectos
-      // Si no, filtra solo los que incluyen al usuario
       if (session?.user?.role === "admin") {
         setProjects(data);
       } else {

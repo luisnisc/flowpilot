@@ -27,13 +27,12 @@ export default async function handler(
     const client = await clientPromise;
     const db = client.db("app");
 
-    // Actualizar el estado de la tarea y registrar la fecha de modificación
     const result = await db.collection("tasks").updateOne(
       { _id: new ObjectId(taskId) },
       {
         $set: {
           status: newStatus,
-          updatedAt: new Date(), // Registrar el momento del cambio
+          updatedAt: new Date(), 
         },
       }
     );
