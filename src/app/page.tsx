@@ -638,9 +638,9 @@ export default function Home() {
                     />
                   </svg>
                 ),
-                title: "Seguimiento en tiempo real",
+                title: "Chat en tiempo real",
                 description:
-                  "Mantente al día con actualizaciones instantáneas sobre el progreso de tus proyectos y tareas.",
+                  "Comunícate con tu equipo de manera instantánea en cualquier proyecto con nuestro sistema de chat integrado.",
               },
               {
                 icon: (
@@ -698,9 +698,9 @@ export default function Home() {
                     />
                   </svg>
                 ),
-                title: "Notificaciones",
+                title: "Indicadores de presencia en línea",
                 description:
-                  "Mantente informado con alertas y recordatorios personalizados sobre fechas de entrega y actualizaciones.",
+                  "Visualiza qué miembros del equipo están conectados en tiempo real para mejorar la colaboración instantánea.",
               },
               {
                 icon: (
@@ -720,7 +720,7 @@ export default function Home() {
                 ),
                 title: "Personalización",
                 description:
-                  "Adapta la plataforma a las necesidades de tu equipo con flujos de trabajo personalizados.",
+                  "Adapta la plataforma a las necesidades de tu equipo.",
               },
             ]}
           />
