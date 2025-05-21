@@ -20,7 +20,9 @@ export default function Login({ callbackUrl }: LoginProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(
-    registered ? "Cuenta creada correctamente. Inicia sesión para continuar." : null
+    registered
+      ? "Cuenta creada correctamente. Inicia sesión para continuar."
+      : null,
   );
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -34,14 +36,14 @@ export default function Login({ callbackUrl }: LoginProps) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    
+
     try {
       const res = await signIn("credentials", {
         redirect: false,
         email,
         password,
       });
-      
+
       if (res?.error) {
         setError(res.error);
       } else {
@@ -70,21 +72,23 @@ export default function Login({ callbackUrl }: LoginProps) {
       <div className="m-auto w-full max-w-md p-8 rounded-xl shadow-xl bg-white">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-gray-800">Iniciar Sesión</h1>
-          <p className="mt-2 text-gray-600">Accede a tu cuenta y gestiona tus proyectos</p>
+          <p className="mt-2 text-gray-600">
+            Accede a tu cuenta y gestiona tus proyectos
+          </p>
         </div>
-        
+
         {error && (
           <div className="mb-6 p-4 rounded-lg bg-red-50 border-l-4 border-red-500">
             <p className="text-red-700 text-sm">{error}</p>
           </div>
         )}
-        
+
         {success && (
           <div className="mb-6 p-4 rounded-lg bg-green-50 border-l-4 border-green-500">
             <p className="text-green-700 text-sm">{success}</p>
           </div>
         )}
-        
+
         <form onSubmit={handleCredentials} className="space-y-5">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500">
@@ -100,7 +104,7 @@ export default function Login({ callbackUrl }: LoginProps) {
               required
             />
           </div>
-          
+
           <div className="relative">
             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500">
               <FiLock className="w-5 h-5" />
@@ -116,13 +120,17 @@ export default function Login({ callbackUrl }: LoginProps) {
             />
             <button
               type="button"
-              className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
+              className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700 cursor-pointer"
               onClick={() => setShowPassword(!showPassword)}
             >
-              {showPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
+              {showPassword ? (
+                <FiEyeOff className="w-5 h-5" />
+              ) : (
+                <FiEye className="w-5 h-5" />
+              )}
             </button>
           </div>
-          
+
           <div className="flex justify-end">
             <Link
               href="/forgot-password"
@@ -131,15 +139,15 @@ export default function Login({ callbackUrl }: LoginProps) {
               ¿Olvidaste tu contraseña?
             </Link>
           </div>
-          
+
           <button
             type="submit"
-            className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors duration-300 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50"
+            className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors duration-300 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 cursor-pointer"
           >
             Iniciar Sesión
           </button>
         </form>
-        
+
         <div className="mt-8 relative">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-gray-300"></div>
@@ -148,47 +156,50 @@ export default function Login({ callbackUrl }: LoginProps) {
             <span className="px-2 bg-white text-gray-500">O continúa con</span>
           </div>
         </div>
-        
+
         <div className="mt-6 grid grid-cols-2 gap-4">
           <button
             onClick={() => {
               setLoading(true);
               signIn("google", { callbackUrl: "/dashboard" });
             }}
-            className="flex items-center justify-center py-2.5 px-4 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition-colors"
+            className="flex items-center justify-center py-2.5 px-4 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition-colors cursor-pointer"
           >
-            <Image 
-              src="/google.svg" 
-              width={20} 
-              height={20} 
+            <Image
+              src="/google.svg"
+              width={20}
+              height={20}
               alt="Google"
               className="mr-2"
             />
             <span className="text-sm font-medium text-gray-700">Google</span>
           </button>
-          
+
           <button
             onClick={() => {
               setLoading(true);
               signIn("github", { callbackUrl: "/dashboard" });
             }}
-            className="flex items-center justify-center py-2.5 px-4 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition-colors"
+            className="flex items-center justify-center py-2.5 px-4 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition-colors cursor-pointer"
           >
-            <Image 
-              src="/github_light.svg" 
-              width={20} 
-              height={20} 
+            <Image
+              src="/github_light.svg"
+              width={20}
+              height={20}
               alt="GitHub"
               className="mr-2"
             />
             <span className="text-sm font-medium text-gray-700">GitHub</span>
           </button>
         </div>
-        
+
         <div className="mt-6 text-center">
           <p className="text-gray-600">
             ¿No tienes una cuenta?{" "}
-            <Link href="/register" className="text-blue-600 hover:text-blue-800 font-medium">
+            <Link
+              href="/register"
+              className="text-blue-600 hover:text-blue-800 font-medium"
+            >
               Regístrate
             </Link>
           </p>
