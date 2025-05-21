@@ -9,7 +9,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const db = client.db("app");
   if (req.method === "POST") {
     const { title, description, priority, project, assignedTo } = req.body;
-    const result = await db.collection("tasks").insertOne({ title, description, priority, project,  assignedTo, status: "pending" });
+    const result = await db.collection("tasks").insertOne({ title, description, priority, project,  assignedTo, status: "pending", createdAt: new Date() });
     return res.status(201).json(result);
   } else if (req.method === "GET") {
     const tasks = await db.collection("tasks").find().toArray();
