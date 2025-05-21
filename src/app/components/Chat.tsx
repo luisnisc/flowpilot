@@ -3,19 +3,89 @@ import { useState, useEffect, useRef } from "react";
 import useChat from "@/hooks/useChat";
 import { useSession } from "next-auth/react";
 import { FaPaperPlane } from "react-icons/fa";
-import usePresence from "@/hooks/usePresence"; 
+import usePresence from "@/hooks/usePresence";
+
+interface UserInfo {
+  displayName: string;
+  isOnline: boolean;
+  avatar: string;
+}
+
+interface UserInfoCache {
+  [key: string]: UserInfo;
+}
 
 export default function Chat({ projectId }: { projectId: string }) {
   const { data: session } = useSession();
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [userInfoCache, setUserInfoCache] = useState<UserInfoCache>({});
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+  const pendingUserFetches = useRef<Set<string>>(new Set());
 
   const userName = session?.user?.name || session?.user?.email || "Usuario";
   const userEmail = session?.user?.email || "";
 
   const { messages, connected, sendMessage, isLoading } = useChat(projectId);
-
   const { onlineUsers } = usePresence(projectId, userEmail, userName);
+
+  useEffect(() => {
+    const loadUserInfo = async () => {
+      setIsLoadingUsers(true);
+      try {
+        const res = await fetch(`/api/users`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        const users = await res.json();
+        const cache: UserInfoCache = {};
+        users.forEach((user: any) => {
+          cache[user.email] = {
+            displayName: user.name || user.email || "Usuario",
+            isOnline: onlineUsers.includes(user.email),
+            avatar:
+              user.image ||
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                user.name || user.email
+              )}&background=random&color=fff&size=32`,
+          };
+        });
+
+        if (!cache[userEmail]) {
+          cache[userEmail] = {
+            displayName: userName,
+            isOnline: true,
+            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(
+              userName
+            )}&background=random&color=fff&size=32`,
+          };
+        }
+
+        setUserInfoCache(cache);
+      } catch (error) {
+        console.error("Error al cargar información de usuarios:", error);
+      } finally {
+        setIsLoadingUsers(false);
+      }
+    };
+
+    loadUserInfo();
+  }, [onlineUsers, userEmail, userName]);
+
+  useEffect(() => {
+    setUserInfoCache((prevCache) => {
+      const newCache = { ...prevCache };
+      Object.keys(newCache).forEach((email) => {
+        newCache[email] = {
+          ...newCache[email],
+          isOnline: onlineUsers.includes(email),
+        };
+      });
+      return newCache;
+    });
+  }, [onlineUsers]);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -27,19 +97,57 @@ export default function Chat({ projectId }: { projectId: string }) {
     e.preventDefault();
     if (!message.trim()) return;
 
-    sendMessage(message, userName);
+    sendMessage(message, userEmail);
     setMessage("");
   };
 
-  const getUserInfo = (username: string) => {
-    const email = username.toLowerCase().trim();
-    const displayName = username.split("@")[0]; 
-    const isOnline = onlineUsers.includes(email); 
-    const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-      displayName
-    )}&background=random&color=fff&size=32`;
+  const getUserInfo = (username: string): UserInfo => {
+    if (userInfoCache[username]) {
+      return userInfoCache[username];
+    }
 
-    return { displayName, isOnline, avatar };
+    fetchUserInfoInBackground(username);
+
+    return {
+      displayName: username.includes("@") ? username.split("@")[0] : username,
+      isOnline: onlineUsers.includes(username),
+      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(
+        username
+      )}&background=random&color=fff&size=32`,
+    };
+  };
+
+  const fetchUserInfoInBackground = async (email: string) => {
+    if (pendingUserFetches.current.has(email)) return;
+    pendingUserFetches.current.add(email);
+
+    try {
+      const res = await fetch(
+        `/api/users/info?email=${encodeURIComponent(email)}`
+      );
+      if (res.ok) {
+        const userData = await res.json();
+
+        setUserInfoCache((prev) => ({
+          ...prev,
+          [email]: {
+            displayName:
+              userData.name ||
+              (email.includes("@") ? email.split("@")[0] : email),
+            isOnline: onlineUsers.includes(email),
+            avatar:
+              userData.image ||
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                email
+              )}&background=random&color=fff&size=32`,
+          },
+        }));
+      }
+    } catch (error) {
+      console.error(`Error fetching info for user ${email}:`, error);
+    } finally {
+      pendingUserFetches.current.delete(email);
+    }
   };
 
   return (
@@ -59,7 +167,7 @@ export default function Chat({ projectId }: { projectId: string }) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {isLoading ? (
+        {isLoading || isLoadingUsers ? (
           <div className="flex flex-col space-y-3">
             {[1, 2, 3].map((i) => (
               <div key={i} className="flex animate-pulse">
@@ -77,8 +185,8 @@ export default function Chat({ projectId }: { projectId: string }) {
           </div>
         ) : (
           messages.map((msg, index) => {
-            const isCurrentUser = msg.user === userName;
-            const { displayName, isOnline, avatar } = getUserInfo(msg.user);
+            const isCurrentUser = msg.user === userEmail;
+            const userInfo = getUserInfo(msg.user);
 
             const timestamp =
               typeof msg.timestamp === "string"
@@ -101,13 +209,13 @@ export default function Chat({ projectId }: { projectId: string }) {
                 {!isCurrentUser && (
                   <div className="relative flex-shrink-0 mr-2">
                     <img
-                      src={avatar}
-                      alt={displayName}
+                      src={userInfo.avatar}
+                      alt={userInfo.displayName}
                       className="w-8 h-8 rounded-full"
                     />
                     <span
                       className={`absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-white rounded-full ${
-                        isOnline ? "bg-green-500" : "bg-gray-300"
+                        userInfo.isOnline ? "bg-green-500" : "bg-gray-300"
                       }`}
                     ></span>
                   </div>
@@ -122,8 +230,8 @@ export default function Chat({ projectId }: { projectId: string }) {
                 >
                   {!isCurrentUser && (
                     <div className="font-medium text-xs mb-1 flex items-center">
-                      {displayName}
-                      {isOnline && (
+                      {userInfo.displayName}
+                      {userInfo.isOnline && (
                         <span className="ml-1.5 text-xs font-normal text-green-600">
                           • en línea
                         </span>
@@ -143,10 +251,8 @@ export default function Chat({ projectId }: { projectId: string }) {
                 {isCurrentUser && (
                   <div className="relative flex-shrink-0 ml-2">
                     <img
-                      src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
-                        userName.split("@")[0]
-                      )}&background=random&color=fff&size=32`}
-                      alt={userName}
+                      src={userInfo.avatar}
+                      alt={userInfo.displayName}
                       className="w-8 h-8 rounded-full"
                     />
                     <span className="absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-white rounded-full bg-green-500"></span>
@@ -176,7 +282,7 @@ export default function Chat({ projectId }: { projectId: string }) {
               ? "bg-blue-500 hover:bg-blue-600 text-white"
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
           } transition-colors`}
-          disabled={!connected}
+          disabled={!connected || !message.trim()}
         >
           <FaPaperPlane />
         </button>
