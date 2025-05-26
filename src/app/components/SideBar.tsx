@@ -14,6 +14,7 @@ import {
   FiSettings,
   FiLogOut,
 } from "react-icons/fi";
+
 interface UserSettings {
   id?: string;
   name: string;
@@ -154,6 +155,13 @@ export default function SideBar() {
                 src={session.user.image}
                 alt="Imagen de perfil"
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src =
+                    `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                session.user.name || session.user.email || "User"
+                              )}&size=32&background=random`
+                }
+                }
               />
             </div>
           </div>
