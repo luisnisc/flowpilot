@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.9.0",
+    "@gsap/react": "^2.1.2",
     "@hello-pangea/dnd": "^18.0.1",
     "@sendgrid/mail": "^8.1.5",
     "@socket.io/redis-adapter": "^8.3.0",

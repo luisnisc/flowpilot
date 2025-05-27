@@ -451,7 +451,7 @@ export default function Home() {
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
+      setIsScrolled(window.scrollY > 200);
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
@@ -459,9 +459,7 @@ export default function Home() {
 
   return (
     <>
-      <div ref={smoothWrapperRef} className="smooth-wrapper">
-        <div ref={contentRef} className="smooth-content">
-          <ProgressTracker />
+    <ProgressTracker />
           <motion.nav
             className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 px-6 py-4 ${
               isScrolled ? "bg-white shadow-md" : "bg-transparent"
@@ -515,6 +513,9 @@ export default function Home() {
               </div>
             </div>
           </motion.nav>
+      <div ref={smoothWrapperRef} className="smooth-wrapper">
+        <div ref={contentRef} className="smooth-content">
+          
 
           <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 text-white">
             <div className="absolute inset-0 overflow-hidden">
