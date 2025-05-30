@@ -908,7 +908,7 @@ export default function Home() {
                         A
                       </div>
                       <div className="ml-4">
-                        <h4 className="font-bold">Ana García</h4>
+                        <h4 className="font-bold text-blue-200">Ana García</h4>
                         <p className="text-gray-500 text-sm">Project Manager</p>
                       </div>
                     </div>
@@ -927,7 +927,7 @@ export default function Home() {
                         C
                       </div>
                       <div className="ml-4">
-                        <h4 className="font-bold">Carlos Rodríguez</h4>
+                        <h4 className="font-bold text-blue-200">Carlos Rodríguez</h4>
                         <p className="text-gray-500 text-sm">CTO, Innovatech</p>
                       </div>
                     </div>
@@ -946,7 +946,7 @@ export default function Home() {
                         L
                       </div>
                       <div className="ml-4">
-                        <h4 className="font-bold">Laura Martínez</h4>
+                        <h4 className="font-bold text-blue-200">Laura Martínez</h4>
                         <p className="text-gray-500 text-sm">
                           Team Lead, Designflow
                         </p>
