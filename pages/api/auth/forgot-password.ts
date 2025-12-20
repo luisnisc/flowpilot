@@ -1,7 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import clientPromise from "../../../lib/mongodb";
 import { randomBytes } from "crypto";
-import sgMail from "@sendgrid/mail";
+import { EmailTemplate } from '../../../src/app/components/email-template';
+import { Resend } from 'resend';
+
+// Inicializamos Resend con la API KEY
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export default async function handler(
   req: NextApiRequest,
@@ -26,14 +30,14 @@ export default async function handler(
       .findOne({ email: email.toLowerCase() });
 
     if (!user) {
+      // Por seguridad, devolvemos 200 aunque el usuario no exista
       return res.status(200).json({
-        message:
-          "Si existe una cuenta con este email, recibirás instrucciones para restablecer tu contraseña.",
+        message: "Si existe una cuenta con este email, recibirás instrucciones para restablecer tu contraseña.",
       });
     }
 
     const resetToken = randomBytes(32).toString("hex");
-    const resetTokenExpiry = new Date(Date.now() + 3600000); 
+    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hora
 
     await db.collection("users").updateOne(
       { email: email.toLowerCase() },
@@ -48,81 +52,49 @@ export default async function handler(
     const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
     const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
 
-
     try {
-      const apiKey = process.env.SENDGRID_API_KEY;
-      if (!apiKey) {
-        console.error(
-          "Error: SENDGRID_API_KEY no está configurada en las variables de entorno"
-        );
-        throw new Error("SENDGRID_API_KEY no configurada");
+      // 1. Verificación de API KEY
+      if (!process.env.RESEND_API_KEY) {
+        throw new Error("RESEND_API_KEY no configurada");
       }
 
-      sgMail.setApiKey(apiKey);
+      const sender = process.env.EMAIL_FROM || "onboarding@resend.dev";
 
-      const sender = process.env.EMAIL_FROM || "noreply@flow-pilot.dev";
-      console.log("Intentando enviar email desde:", sender);
-
-      const msg = {
-        to: email,
-        from: sender,
+      // 2. Envío con Resend usando el componente React
+      const { data, error } = await resend.emails.send({
+        from: `noreply@flow-pilot.dev`,
+        to: [email],
         subject: "Restablece tu contraseña de FlowPilot",
-        text: `Hola,\n\nPara restablecer tu contraseña, haz clic en el siguiente enlace: ${resetUrl}\n\nEste enlace expirará en 1 hora.\n\nSi no solicitaste restablecer tu contraseña, puedes ignorar este mensaje.\n\nSaludos,\nEquipo FlowPilot`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #333;">Restablece tu contraseña de FlowPilot</h2>
-            <p>Hola,</p>
-            <p>Has solicitado restablecer tu contraseña en FlowPilot. Haz clic en el siguiente botón para crear una nueva contraseña:</p>
-            <p style="text-align: center; margin: 30px 0;">
-              <a href="${resetUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">Restablecer contraseña</a>
-            </p>
-            <p>Este enlace expirará en 1 hora.</p>
-            <p>Si no solicitaste restablecer tu contraseña, puedes ignorar este mensaje.</p>
-            <p>Saludos,<br>Equipo FlowPilot</p>
-          </div>
-        `,
-      };
+        // Aquí usamos tu componente de React directamente
+        react: EmailTemplate({ resetUrl }) as React.ReactElement,
+        // Fallback en texto plano para clientes de correo antiguos
+        text: `Hola, para restablecer tu contraseña haz clic aquí: ${resetUrl}`,
+      });
 
-      console.log("Enviando email...");
-      const response = await sgMail.send(msg);
-      console.log(
-        "Email enviado correctamente, respuesta:",
-        response[0].statusCode
-      );
-
-     
-    } catch (emailError: any) {
-      console.error("Error al enviar email con SendGrid:", emailError);
-
-      if (emailError.response) {
-        console.error("Detalles del error:");
-        console.error("  Status:", emailError.response.status);
-        console.error("  Body:", emailError.response.body);
+      if (error) {
+        throw error;
       }
+
+      console.log("Email enviado con Resend ID:", data?.id);
+
+    } catch (emailError: any) {
+      console.error("Error al enviar email con Resend:", emailError);
 
       if (process.env.NODE_ENV === "development") {
         return res.status(200).json({
-          message:
-            "Error al enviar email, pero el token fue generado. Revisa la consola para ver el token.",
+          message: "Error al enviar email, pero el token fue generado.",
           error: emailError.message,
-          devInfo: {
-            resetToken,
-            resetUrl,
-            expiresAt: resetTokenExpiry,
-          },
+          devInfo: { resetToken, resetUrl },
         });
       }
     }
 
     return res.status(200).json({
-      message:
-        "Si existe una cuenta con este email, recibirás instrucciones para restablecer tu contraseña.",
+      message: "Si existe una cuenta con este email, recibirás instrucciones para restablecer tu contraseña.",
     });
+
   } catch (error) {
-    console.error(
-      "Error en solicitud de restablecimiento de contraseña:",
-      error
-    );
+    console.error("Error en solicitud de restablecimiento:", error);
     return res.status(500).json({ error: "Error al procesar la solicitud" });
   }
 }
